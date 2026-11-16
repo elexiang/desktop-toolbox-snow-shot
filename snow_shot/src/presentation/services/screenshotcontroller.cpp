@@ -1,4 +1,5 @@
 #include "snow_shot/presentation/screenshotcanvastools.h"
+#include "../../toolbox/toolboxpaths.h"
 #include "snow_shot/presentation/screenshotmanualsave.h"
 #include "snow_shot/runtime/runtimeactivitytracker.h"
 #include "snow_draw_engine_qt/snow_canvas_image.h"
@@ -1346,60 +1347,56 @@ bool ScreenshotController::Impl::ensureRecognitionFeature() {
 #endif
 
     m_ocrController = std::make_unique<ScreenshotOcrController>(
-        ScreenshotOcrControllerContext{
-            m_captureState,
-            m_interaction,
-            m_selection,
-            m_displaySession,
-            m_geometry,
-            *m_overlayCoordinator,
-            *m_ocrRecognition,
+        ScreenshotOcrControllerContext {
+            m_captureState, m_interaction, m_selection, m_displaySession, m_geometry,
+                *m_overlayCoordinator, *m_ocrRecognition,
 #if SNOW_SHOT_ENABLE_QR_RECOGNITION
-            m_qrRecognition.get(),
+                m_qrRecognition.get(),
 #else
-            nullptr,
+                nullptr,
 #endif
 #if SNOW_SHOT_ENABLE_TABLE_RECOGNITION || SNOW_SHOT_ENABLE_LATEX_RECOGNITION ||                    \
     SNOW_SHOT_ENABLE_IMAGE_CONVERSION || SNOW_SHOT_ENABLE_TEXT_TRANSLATION
-            m_tableRecognition.data(),
+                m_tableRecognition.data(),
 #else
-            nullptr,
+                nullptr,
 #endif
-            [this]() { hideColorPicker(); },
-            [this]() { cancelCapture(); },
-            [this](const QPointF& canvasPosition) {
-                return m_overlayInputHandler != nullptr
-                           ? m_overlayInputHandler->selectionResizeDragModeAtCanvasPosition(
-                                 canvasPosition)
-                           : ScreenshotSelectionDragMode::None;
-            },
-            [this](const QPointF& canvasPosition) {
-                return m_overlayInputHandler != nullptr &&
-                       m_overlayInputHandler->beginSelectionResizeAtCanvasPosition(canvasPosition);
-            },
-            [this](const QPointF& canvasPosition) {
-                if (m_overlayInputHandler != nullptr) {
-                    m_overlayInputHandler->updateSelectionResizeAtCanvasPosition(canvasPosition);
-                }
-            },
-            [this](const QPointF& canvasPosition) {
-                if (m_overlayInputHandler != nullptr) {
-                    m_overlayInputHandler->finishSelectionResizeAtCanvasPosition(canvasPosition);
-                }
-            },
-            m_windowShortcutManager.get(),
-            [this]() {
-                if (m_ocrTranslateAfterRecognition ||
-                    m_interaction.activeTool() == ScreenshotActiveTool::TextTranslation ||
-                    m_ocrAutoActionHandledActivationId == m_ocrActivationId) {
-                    return true;
-                }
-                const QString action =
-                    snow_shot::storage::ScreenshotSettings().autoExecuteAfterTextRecognition();
-                return action != QStringLiteral("copy_text_and_end_screenshot") &&
-                       (action != QStringLiteral("quick_copy_text_and_end_screenshot") ||
-                        !m_ocrFromQuickOcrAction);
-            },
+                [this]() { hideColorPicker(); }, [this]() { cancelCapture(); },
+                [this](const QPointF& canvasPosition) {
+                    return m_overlayInputHandler != nullptr
+                               ? m_overlayInputHandler->selectionResizeDragModeAtCanvasPosition(
+                                     canvasPosition)
+                               : ScreenshotSelectionDragMode::None;
+                },
+                [this](const QPointF& canvasPosition) {
+                    return m_overlayInputHandler != nullptr &&
+                           m_overlayInputHandler->beginSelectionResizeAtCanvasPosition(
+                               canvasPosition);
+                },
+                [this](const QPointF& canvasPosition) {
+                    if (m_overlayInputHandler != nullptr) {
+                        m_overlayInputHandler->updateSelectionResizeAtCanvasPosition(
+                            canvasPosition);
+                    }
+                },
+                [this](const QPointF& canvasPosition) {
+                    if (m_overlayInputHandler != nullptr) {
+                        m_overlayInputHandler->finishSelectionResizeAtCanvasPosition(
+                            canvasPosition);
+                    }
+                },
+                m_windowShortcutManager.get(), [this]() {
+                    if (m_ocrTranslateAfterRecognition ||
+                        m_interaction.activeTool() == ScreenshotActiveTool::TextTranslation ||
+                        m_ocrAutoActionHandledActivationId == m_ocrActivationId) {
+                        return true;
+                    }
+                    const QString action =
+                        snow_shot::storage::ScreenshotSettings().autoExecuteAfterTextRecognition();
+                    return action != QStringLiteral("copy_text_and_end_screenshot") &&
+                           (action != QStringLiteral("quick_copy_text_and_end_screenshot") ||
+                            !m_ocrFromQuickOcrAction);
+                },
         },
         &owner);
     QObject::connect(m_ocrController.get(), &ScreenshotOcrController::textResultChanged, &owner,
@@ -2845,6 +2842,8 @@ void ScreenshotController::Impl::setSequenceNumberTool() {
 }
 
 void ScreenshotController::Impl::setOcrTool() {
+    if (!toolbox::enabled(QStringLiteral("ocr")))
+        return;
     ++m_ocrActivationId;
     m_ocrFromQuickOcrAction = m_activatingQuickOcr;
     m_ocrTranslateAfterRecognition = false;
@@ -2878,6 +2877,20 @@ void ScreenshotController::Impl::handleAutomaticTextRecognitionAction(bool avail
     if (m_ocrTranslateAfterRecognition) {
         m_ocrTranslateAfterRecognition = false;
         m_ocrController->beginTextTranslation();
+        return;
+    }
+
+    if (m_interaction.activeTool() == ScreenshotActiveTool::Ocr &&
+        toolbox::enabled(QStringLiteral("ocr"))) {
+        const QString text = m_ocrController->sourceTextDraft();
+        const auto activation = m_ocrActivationId;
+        QTimer::singleShot(0, &owner, [this, text, activation] {
+            if (activation != m_ocrActivationId ||
+                m_interaction.activeTool() != ScreenshotActiveTool::Ocr)
+                return;
+            cancelCapture();
+            emit owner.textRecognitionReady(text);
+        });
         return;
     }
 
@@ -2973,6 +2986,8 @@ void ScreenshotController::Impl::setRecognitionModel(const QString& selection) {
 }
 
 void ScreenshotController::Impl::setTextTranslationTool() {
+    if (!toolbox::enabled(QStringLiteral("translation")))
+        return;
 #if SNOW_SHOT_ENABLE_TEXT_TRANSLATION
     ++m_ocrActivationId;
     m_ocrFromQuickOcrAction = false;
@@ -3453,6 +3468,8 @@ void ScreenshotController::Impl::pinWindowSelectionToScreen() {
 }
 
 void ScreenshotController::Impl::pinSelectionToScreen() {
+    if (!toolbox::enabled(QStringLiteral("pin")))
+        return;
     if (!ensureExportFeature()) {
         return;
     }

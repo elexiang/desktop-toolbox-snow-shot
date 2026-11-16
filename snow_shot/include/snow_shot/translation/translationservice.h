@@ -178,6 +178,7 @@ class TranslationJob final : public QObject {
     bool m_dispatchBlocked = false;
     bool m_fixedPreferences = false;
     bool m_languageDetectionAttempted = false;
+    quint64 m_offlineRequest = 0;
 };
 #endif
 } // namespace snow_shot::translation

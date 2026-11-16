@@ -31,6 +31,9 @@ class ScreenshotColorPickerWindow final : public QWidget {
     void cycleColorFormat();
     void toggleCoordinateMode();
     QString currentColorText() const;
+    QColor currentColor() const {
+        return m_currentColor;
+    }
     QString currentPositionText() const;
     bool hasCurrentColor() const;
 

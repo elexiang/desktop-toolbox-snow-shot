@@ -16,6 +16,11 @@
 #define NOMINMAX
 #endif
 #include <qt_windows.h>
+#ifdef _MSC_VER
+// C++/WinRT delegates use COM lifetime management rather than a virtual destructor.
+#pragma warning(push)
+#pragma warning(disable : 4265)
+#endif
 #include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Foundation.h>
 #endif
@@ -93,6 +98,9 @@ AutoStartRegistrationSnapshot storeStartupState(std::optional<bool> enabled = st
                })
         .get();
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 constexpr wchar_t RUN_KEY[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const wchar_t* startupValueName() {

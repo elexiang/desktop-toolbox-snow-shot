@@ -44,10 +44,10 @@ inline constexpr bool extendedFeatures = SNOW_SHOT_ENABLE_EXTENDED_FEATURES != 0
                   : QCoreApplication::translate("EditionMetadata", "Snow Shot");
 }
 [[nodiscard]] inline QString applicationName() {
-    return isMini ? QStringLiteral("snow_shot_mini") : QStringLiteral("snow_shot");
+    return isMini ? QStringLiteral("snow_toolbox_mini") : QStringLiteral("SnowToolbox");
 }
 [[nodiscard]] inline QString registryName() {
-    return isMini ? QStringLiteral("SnowShotMini") : QStringLiteral("SnowShot");
+    return isMini ? QStringLiteral("SnowToolboxMini") : QStringLiteral("SnowToolbox");
 }
 [[nodiscard]] inline QString executableName() {
 #ifdef Q_OS_WIN

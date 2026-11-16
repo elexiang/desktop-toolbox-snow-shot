@@ -2,11 +2,8 @@ set(USE_QT_VERSION "6")
 
 if(VCPKG_TARGET_IS_WINDOWS)
     vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-    # Snow Shot links the static Qt kit and therefore uses the static CRT even
-    # in its debug preset. OpenCV is linked into that executable directly, so
-    # the library must match the static CRT or every std::string/std::vector
-    # returned by the decoders would cross CRT heap boundaries.
-    set(VCPKG_CRT_LINKAGE static)
+    # Keep the CRT selected by the triplet. Static Qt uses /MT, while the
+    # toolbox's shared Qt kit uses /MD. OpenCV's C++ objects cross this boundary.
 endif()
 
 # fix to get version from eigen after v3.4.0

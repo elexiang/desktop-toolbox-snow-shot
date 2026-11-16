@@ -1,4 +1,7 @@
 #include "snow_shot/app/edition.h"
+#include "../toolbox/toolboxcontroller.h"
+#include "../toolbox/memoryservice.h"
+#include "../toolbox/toolboxpaths.h"
 #include "snow_shot/platform/applicationqos.h"
 #include "snow_shot/app/applicationcontroller.h"
 #include "snow_shot/app/applicationrestart.h"
@@ -126,6 +129,67 @@ std::optional<bool> updateTransactionPending(const QString& helperPath, const QS
 } // namespace
 
 int main(int argc, char* argv[]) {
+    if (argc == 2 && QByteArray(argv[1]) == "--toolbox-configuration-probe") {
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+        QApplication probe(argc, argv);
+        QTemporaryDir directory;
+        if (!directory.isValid())
+            return 4;
+        qputenv("SNOW_TOOLBOX_DATA", directory.path().toUtf8());
+        auto& storage = snow_shot::storage::ApplicationStorage::instance();
+        snow_shot::storage::StorageInitializationOptions options{directory.path(), directory.path(),
+                                                                 8000};
+        options.isolateAuxiliaryStorage = true;
+        if (!storage.initialize(options).success)
+            return 5;
+        bool ok = true;
+        auto& configuration = storage.configuration();
+        QObject::connect(&configuration, &snow_shot::storage::ConfigurationStore::mutationRejected,
+                         &probe, [&](const QString& key, const QString& error) {
+                             qWarning().noquote() << key << error;
+                             ok = false;
+                         });
+        for (bool enabled : {true, false, true}) {
+            QSettings settings(toolbox::settingsPath(), QSettings::IniFormat);
+            for (const auto& module :
+                 {"capture", "annotation", "color", "pin", "ocr", "translation"})
+                settings.setValue(QString::fromLatin1(module), enabled);
+            settings.sync();
+            ok = toolbox::ToolboxController::configureCapture() && ok;
+            const auto values = configuration.snapshot();
+            int globalCount = 0;
+            for (auto it = values.cbegin(); it != values.cend(); ++it)
+                if (it.key().startsWith(QStringLiteral("global_shortcuts/")))
+                    globalCount += int(it.value().toArray().size());
+            ok =
+                ok && globalCount == (enabled ? 1 : 0) &&
+                !configuration.value(QStringLiteral("text_recognition/resident_process"))
+                     .toBool() &&
+                !configuration.value(QStringLiteral("text_recognition/model_hot_start")).toBool() &&
+                configuration.value(QStringLiteral("updates/mode")).toString() == u"manual" &&
+                !configuration.value(QStringLiteral("tray/enabled")).toBool();
+            const auto actions =
+                configuration.value(QStringLiteral("screenshot_toolbar/action_tools_layout"))
+                    .toObject()
+                    .value(QStringLiteral("positions"))
+                    .toArray();
+            QSet<QString> ids;
+            for (const auto& group : actions)
+                for (const auto& id : group.toArray())
+                    ids.insert(id.toString());
+            ok = ok && ids.size() == (enabled ? 6 : 3) && ids.contains(QStringLiteral("copy")) &&
+                 ids.contains(QStringLiteral("save-as-file")) &&
+                 ids.contains(QStringLiteral("text-recognition")) == enabled &&
+                 ids.contains(QStringLiteral("text-translation")) == enabled &&
+                 ids.contains(QStringLiteral("pin-to-screen")) == enabled;
+        }
+        storage.shutdown();
+        return ok ? 0 : 1;
+    }
+    if (argc == 3 && QByteArray(argv[1]) == "--toolbox-memory-helper") {
+        QCoreApplication helper(argc, argv);
+        return toolbox::MemoryService::runDeepHelper(QString::fromLocal8Bit(argv[2]));
+    }
     if (argc > 1 && QByteArray(argv[1]) == "--distribution-probe") {
         if (argc != 2)
             return 64;
@@ -625,6 +689,7 @@ int main(int argc, char* argv[]) {
 #endif
     static_cast<void>(
         snow_shot::storage::ApplicationStorage::instance().initialize(storageOptions));
+    toolbox::ToolboxController::configureCapture();
     struct StorageLifetime {
         ~StorageLifetime() {
             snow_shot::storage::ApplicationStorage::instance().shutdown();

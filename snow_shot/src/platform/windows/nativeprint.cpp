@@ -1,3 +1,8 @@
+#ifdef _MSC_VER
+// Windows SDK COM delegates intentionally use reference-counted destruction.
+#pragma warning(push)
+#pragma warning(disable : 4265)
+#endif
 #include "../../presentation/services/nativeprintbackend.h"
 #include "nativeprintdocument.h"
 #include "nativeprintdialog.h"
@@ -592,3 +597,6 @@ screenshotLegacyWindowsPrintBackend(ScreenshotWindowsPrintDialogApi api) {
         std::make_shared<PhotoPrintJob>()->start(owner, image, std::move(completion), api);
     };
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

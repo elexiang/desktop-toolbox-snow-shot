@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <algorithm>
 #include <utility>
+#include "../toolbox/offlinetranslator.h"
 
 namespace snow_shot::translation {
 namespace {
@@ -80,60 +81,12 @@ TranslationService::TranslationService(SnowShotApiClient& client,
       m_languageDetector(languageDetector
                              ? std::move(languageDetector)
                              : TranslationLanguageDetector(detectTranslationLanguage)) {
-    client.setCustomModels(customAiModelsFromJson(settings.value(customKey)));
-    client.setTextTranslationConfigurations(
-        textTranslationConfigurationsFromJson(settings.value(textKey)));
-    client.setProxyConfiguration(settings.value(proxyKey).toString(),
-                                 settings.value(httpProxyKey).toString());
-    connect(&settings, &QObject::destroyed, this, [this] { delete this; });
     connect(&settings, &storage::ConfigurationStore::valueChanged, this,
             [this](const QString& key, const QJsonValue&) {
-                if (m_client == nullptr || m_settings == nullptr)
-                    return;
-                if (key == serverKey) {
-                    static_cast<void>(m_client->setBaseUrl(SnowShotApiClient::configuredBaseUrl(
-                        m_settings->value(serverKey).toString())));
-                } else if (key == customKey) {
-                    m_client->setCustomModels(customAiModelsFromJson(m_settings->value(customKey)));
-                } else if (key == textKey) {
-                    m_client->setTextTranslationConfigurations(
-                        textTranslationConfigurationsFromJson(m_settings->value(textKey)));
-                } else if (key == proxyKey || key == httpProxyKey) {
-                    m_client->setProxyConfiguration(m_settings->value(proxyKey).toString(),
-                                                    m_settings->value(httpProxyKey).toString());
-                } else if (!m_saving &&
-                           (key == sourceKey || key == targetKey || key == secondaryTargetKey ||
-                            key == confidenceThresholdKey || key == modelKey)) {
+                if (!m_saving && (key == sourceKey || key == targetKey ||
+                                  key == secondaryTargetKey || key == modelKey))
                     syncPreferences(ChangeReason::UserPreferences);
-                }
             });
-    connect(&client, &SnowShotApiClient::customModelInvalidated, this,
-            [this](const QString& id, bool translation, bool) {
-                if (translation) {
-                    m_modelInvalidationPending = true;
-                    emit modelInvalidated(id);
-                }
-            });
-    connect(&client, &SnowShotApiClient::baseUrlChanged, this, [this] {
-        m_client->cancel(std::exchange(m_modelsToken, 0));
-        m_client->cancel(std::exchange(m_fastCatalogToken, 0));
-        m_fastAvailable = false;
-        m_fastCatalogAttempted = false;
-        m_fastCatalogConfirmed = false;
-        const QPointer<TranslationService> guard(this);
-        emit modelInvalidated(fastTranslationId);
-        if (guard)
-            refreshModels(true);
-    });
-    connect(&client, &SnowShotApiClient::accountIdentityChanged, this,
-            [this] { emit modelInvalidated(fastTranslationId); });
-    connect(&client, &SnowShotApiClient::chatModelsChanged, this,
-            [this] { publishModels(m_modelsToken == 0); });
-    connect(&client, &QObject::destroyed, this, [this] {
-        m_modelsToken = 0;
-        m_fastCatalogToken = 0;
-        emit unavailable();
-    });
     syncPreferences(ChangeReason::Catalog);
     publishModels(false);
 }
@@ -201,89 +154,21 @@ bool TranslationService::savePreferences(const TranslationPreferences& preferenc
 }
 
 void TranslationService::publishModels(bool resolveSelection) {
-    if (m_client == nullptr)
-        return;
-    m_models = m_client->cachedChatModels();
-    m_models.removeIf([](const auto& model) {
-        return model.id == freeTranslationId || model.id == fastTranslationId;
-    });
-    m_models.prepend({freeTranslationId, tr("Free translation"), false, freeTranslationId, false});
-    if (m_fastAvailable)
-        m_models.insert(
-            1, {fastTranslationId, tr("Fast Translation"), false, fastTranslationId, false});
-    // Select renders a header for each contiguous group. Keep custom and server general
-    // models together while preserving their order within each translation category.
-    std::stable_partition(m_models.begin(), m_models.end(), [](const auto& model) {
-        return model.translationMode == QStringLiteral("default");
-    });
-    const auto reason =
-        m_modelInvalidationPending ? ChangeReason::ModelInvalidated : ChangeReason::Catalog;
-    // A catalog can change inside a settings write, before the preference cache is synchronized.
-    const QString selectedModel =
-        m_settings != nullptr ? m_settings->value(modelKey).toString() : m_preferences.modelId;
-    const int index = translationModelIndex(m_models, selectedModel);
-    const bool unresolvedLegacy =
-        snowShotLegacyAiModelId(selectedModel) &&
-        snowShotResolvedBuiltInModelId(m_models, selectedModel) == selectedModel &&
-        std::none_of(m_models.cbegin(), m_models.cend(),
-                     [&selectedModel](const auto& model) { return model.id == selectedModel; });
-    const bool missingCustom = (selectedModel.startsWith(QStringLiteral("custom:")) &&
-                                !m_client->isCustomModel(selectedModel)) ||
-                               (selectedModel.startsWith(QStringLiteral("translation:")) &&
-                                !m_client->isTextTranslation(selectedModel));
-    const bool localDefault = selectedModel.isEmpty() && index >= 0 &&
-                              (m_models.at(index).id == freeTranslationId ||
-                               m_client->isCustomModel(m_models.at(index).id) ||
-                               m_client->isTextTranslation(m_models.at(index).id));
-    if (!unresolvedLegacy && (resolveSelection || missingCustom || localDefault) &&
-        (index >= 0 || missingCustom)) {
-        const QString resolved = index >= 0 ? m_models.at(index).id : QString();
-        if (resolved != selectedModel && m_settings != nullptr) {
-            if (!writePreferences({{modelKey, resolved}}, reason).has_value())
-                return;
-        }
-    }
-    m_modelInvalidationPending = false;
+    static_cast<void>(resolveSelection);
+    m_models = {{QStringLiteral("toolbox-local"), tr("Offline Chinese / English"), false,
+                 QStringLiteral("default"), false}};
+    m_preferences.modelId = QStringLiteral("toolbox-local");
     emit catalogChanged();
 }
 
 void TranslationService::refreshModels(bool force) {
-    if (m_client == nullptr)
-        return;
-    const bool refreshChat = m_modelsToken == 0;
-    if (refreshChat) {
-        m_catalogAttempted = true;
-        m_catalogError.clear();
-        m_modelsToken = m_client->ensureChatModels(
-            m_locale.name(), this,
-            [this](SnowShotChatModelsResult result) {
-                m_modelsToken = 0;
-                m_catalogError = result.error;
-                publishModels(result.succeeded());
-            },
-            force ? SnowShotApiClient::ChatModelsCachePolicy::Refresh
-                  : SnowShotApiClient::ChatModelsCachePolicy::UseCached);
-        if (m_modelsToken == 0)
-            m_catalogError = tr("No translation services are available");
-    }
-    const bool refreshFast = refreshFastCatalog(force);
-    if (refreshChat || refreshFast)
-        publishModels(false);
+    static_cast<void>(force);
+    publishModels(false);
 }
 
 bool TranslationService::refreshFastCatalog(bool force) {
-    if (!m_client || m_fastCatalogToken != 0 || (m_fastCatalogConfirmed && !force))
-        return false;
-    m_fastCatalogAttempted = true;
-    m_fastCatalogToken =
-        m_client->fetchFastTranslationAvailability(this, [this](std::optional<bool> available) {
-            m_fastCatalogToken = 0;
-            m_fastCatalogConfirmed = available.has_value();
-            if (available.has_value())
-                m_fastAvailable = *available;
-            publishModels(false);
-        });
-    return m_fastCatalogToken != 0;
+    static_cast<void>(force);
+    return false;
 }
 
 void TranslationService::setLocale(const QLocale& locale) {
@@ -370,6 +255,7 @@ TranslationJob::~TranslationJob() {
 }
 
 void TranslationJob::cancel() {
+    toolbox::OfflineTranslator::instance().cancel(std::exchange(m_offlineRequest, 0));
     ++m_generation;
     const auto requests = std::exchange(m_requests, {});
     if (m_client != nullptr)
@@ -417,19 +303,13 @@ void TranslationJob::retry() {
             unit.state = State::Idle;
         hasPendingUnits |= unit.state == State::Idle;
     }
-    // Detect lazily so unchanged targets and empty jobs avoid joining and analyzing text.
-    // A later retry can enable routing; its first detection still includes every original unit.
-    if (hasPendingUnits && !m_languageDetectionAttempted &&
-        !m_preferences.secondaryTargetLanguage.isEmpty() &&
-        m_preferences.secondaryTargetLanguage != m_preferences.targetLanguage) {
-        QStringList sources;
-        sources.reserve(m_units.size());
-        for (const auto& unit : m_units)
-            sources.append(unit.sourceText);
-        m_languageDetectionAttempted = true;
-        m_detectedLanguage = m_service->m_languageDetector(sources.join(u'\n'));
-    }
-    m_effectiveTargetLanguage = resolveTranslationTarget(m_preferences, m_detectedLanguage);
+    QStringList localSources;
+    for (const auto& unit : m_units)
+        localSources.append(unit.sourceText);
+    m_effectiveTargetLanguage = toolbox::OfflineTranslator::direction(localSources.join(u'\n'),
+                                                                      {}) == QStringLiteral("zh_en")
+                                    ? QStringLiteral("en")
+                                    : QStringLiteral("zh");
     m_state = State::WaitingForModels;
     const auto generation = m_generation;
     const QPointer<TranslationJob> guard(this);
@@ -448,151 +328,47 @@ void TranslationJob::retry() {
 void TranslationJob::prepare() {
     if (m_state != State::WaitingForModels || m_service == nullptr)
         return;
-    if (std::all_of(m_units.cbegin(), m_units.cend(),
-                    [](const auto& unit) { return unit.state == State::Completed; })) {
-        m_state = State::Completed;
-        publishState();
-        return;
-    }
-    if (m_preferences.modelId == fastTranslationId) {
-        if (m_service->m_fastCatalogToken != 0)
-            return;
-        if (!m_service->m_fastAvailable) {
-            fail(tr("Translation service is unavailable"));
-            return;
-        }
-        m_state = State::Streaming;
-        if (m_fastGroupOffsets.isEmpty())
-            prepareFastChunks();
-        pumpFast();
-        return;
-    }
-    const auto& models = m_service->models();
-    m_preferences.modelId = snowShotResolvedBuiltInModelId(models, m_preferences.modelId);
-    const auto it = std::find_if(models.cbegin(), models.cend(), [this](const auto& model) {
-        return model.id == m_preferences.modelId;
-    });
-    if (it == models.cend()) {
-        if (m_service->m_modelsToken != 0)
-            return;
-        if (!m_service->m_catalogAttempted) {
-            m_service->refreshModels();
-            return;
-        }
-        if (!m_service->m_catalogError.isEmpty() && !m_preferences.modelId.isEmpty()) {
-            fail(m_service->m_catalogError);
-            return;
-        }
-        if (m_fixedPreferences && !m_preferences.modelId.isEmpty()) {
-            fail(m_service->errorText());
-            return;
-        }
-        const int index = translationModelIndex(models, m_service->preferences().modelId);
-        if (index < 0) {
-            fail(m_service->errorText());
-            return;
-        }
-        m_preferences.modelId = models.at(index).id;
-        m_translationMode = models.at(index).translationMode;
-    } else {
-        m_translationMode = it->translationMode;
-    }
     m_state = State::Streaming;
     pump();
 }
 
 void TranslationJob::pump() {
-    if (m_state != State::Streaming || m_client == nullptr)
+    if (m_state != State::Streaming || m_offlineRequest != 0)
         return;
-    const auto generation = m_generation;
-    const bool builtIn = m_preferences.modelId != freeTranslationId &&
-                         !m_client->isCustomModel(m_preferences.modelId) &&
-                         !m_client->isTextTranslation(m_preferences.modelId);
-    for (int group = 0;
-         group < m_unitGroups.size() &&
-         m_requests.size() < (m_client->isTextTranslation(m_preferences.modelId) ? 16 : 8) &&
-         !m_dispatchBlocked;
-         ++group) {
+    for (int group = 0; group < m_unitGroups.size(); ++group) {
         const auto indices = m_unitGroups[group];
-        const auto& unit = m_units[indices.first()];
-        if (unit.state != State::Idle)
+        if (m_units[indices.first()].state != State::Idle)
             continue;
-        for (const int index : indices) {
+        for (int index : indices)
             m_units[index].state = State::Streaming;
-            m_units[index].text.clear();
-        }
-        const SnowShotTranslationRequest request{
-            m_preferences.modelId, m_preferences.sourceLanguage, m_effectiveTargetLanguage,
-            unit.sourceText, m_translationMode};
-        const auto token = m_client->streamTranslation(
-            request, this,
-            [this, generation, indices](const QString& delta) {
+        const auto generation = m_generation;
+        m_offlineRequest = toolbox::OfflineTranslator::instance().translate(
+            m_units[indices.first()].sourceText, m_effectiveTargetLanguage, this,
+            [this, generation, indices](QString text, QString error) {
                 if (generation != m_generation || m_state != State::Streaming)
                     return;
-                // Publish one coherent snapshot before observers see any original position.
-                QString text = m_units[indices.first()].text;
-                text += delta;
-                for (const int index : indices)
-                    m_units[index].text = text;
+                m_offlineRequest = 0;
                 const QPointer<TranslationJob> guard(this);
-                for (const int index : indices) {
+                for (int index : indices) {
+                    m_units[index].text = text;
+                    m_units[index].state = error.isEmpty() ? State::Completed : State::Failed;
                     emit unitChanged(index);
-                    if (!guard || generation != m_generation || m_state != State::Streaming)
+                    if (!guard)
                         return;
                 }
-            },
-            [this, generation, group, indices, builtIn](SnowShotTranslationResult result) {
-                if (generation != m_generation || !m_requests.remove(group))
+                if (!error.isEmpty()) {
+                    fail(error);
                     return;
-                if (result.succeeded() && m_units[indices.first()].text.trimmed().isEmpty())
-                    result.error = tr("The model returned no content");
-                for (const int index : indices)
-                    m_units[index].state = result.succeeded() ? State::Completed : State::Failed;
-                const bool accountFailure =
-                    builtIn &&
-                    (result.httpStatus == 401 || result.httpStatus == 402 ||
-                     result.code == u"account_required" || result.code == u"invalid_session" ||
-                     result.code == u"insufficient_credits" ||
-                     result.code == u"outstanding_balance");
-                if (!result.succeeded() && !m_dispatchBlocked)
-                    m_result = result;
-                if (!m_dispatchBlocked && (result.httpStatus == 429 || accountFailure)) {
-                    m_dispatchBlocked = true;
-                    // A terminal rejection also retires requests in the shared built-in
-                    // queue. Already dispatched chat streams can finish without losing
-                    // their partial output or incurring a duplicate provider call.
-                    const auto requests = m_requests;
-                    for (auto it = requests.cbegin(); it != requests.cend(); ++it) {
-                        if (m_client->isTextTranslation(m_preferences.modelId) ||
-                            m_client->isQueued(it.value())) {
-                            m_requests.remove(it.key());
-                            m_client->cancel(it.value());
-                            for (const int index : m_unitGroups[it.key()])
-                                m_units[index].state = State::Failed;
-                        }
-                    }
-                    for (auto& pending : m_units)
-                        if (pending.state == State::Idle)
-                            pending.state = State::Failed;
                 }
                 pump();
             });
-        if (token != 0)
-            m_requests.insert(group, token);
-        else {
-            for (const int index : indices)
-                m_units[index].state = State::Failed;
-            m_result.error = tr("Translation request could not be prepared");
-        }
+        return;
     }
-    if (m_requests.isEmpty()) {
-        m_state = std::any_of(m_units.cbegin(), m_units.cend(),
-                              [](const auto& unit) { return unit.state == State::Failed; })
-                      ? State::Failed
-                      : State::Completed;
-    }
-    if (generation == m_generation)
+    if (m_state == State::Streaming) {
+        m_state = State::Completed;
         publishState();
+    }
+    return;
 }
 
 void TranslationJob::prepareFastChunks() {

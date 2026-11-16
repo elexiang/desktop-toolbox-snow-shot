@@ -1,4 +1,6 @@
 #include "snow_shot/app/edition.h"
+#include "../toolbox/toolboxcontroller.h"
+#include "../toolbox/toolboxpaths.h"
 #include "snow_shot/app/applicationcontroller.h"
 #include "snow_shot/app/distribution.h"
 #include "snow_shot/app/storeupdatelifecycle.h"
@@ -260,12 +262,16 @@ class ApplicationController::Impl {
                              if (action == presentation::GlobalShortcutAction::SwitchWindowGroup)
                                  ensureWindowGroupSwitcher().activateShortcut(registrationId);
                          });
-        QObject::connect(&globalShortcutManager, &presentation::GlobalShortcutManager::stateChanged,
-                         &q,
-                         [this](presentation::GlobalShortcutAction action,
-                                const presentation::GlobalShortcutRegistrationState& state) {
-                             systemTray.setGlobalShortcuts(action, state.shortcuts);
-                         });
+        QObject::connect(
+            &globalShortcutManager, &presentation::GlobalShortcutManager::stateChanged, &q,
+            [this](presentation::GlobalShortcutAction action,
+                   const presentation::GlobalShortcutRegistrationState& state) {
+                systemTray.setGlobalShortcuts(action, state.shortcuts);
+                if (action == presentation::GlobalShortcutAction::Screenshot &&
+                    state.status == presentation::GlobalShortcutStatus::Failed && toolboxController)
+                    QTimer::singleShot(0, toolboxController.get(),
+                                       &toolbox::ToolboxController::reportShortcutFailure);
+            });
         QObject::connect(&globalShortcutManager,
                          &presentation::GlobalShortcutManager::globalShortcutsEnabledChanged, &q,
                          [this](bool enabled) {
@@ -328,11 +334,6 @@ class ApplicationController::Impl {
                 applicationStorage.configuration()
                     .value(QStringLiteral("api_configuration/server_url"))
                     .toString()));
-        auto* accountSession = AccountSessionService::forClient(translationClient.get());
-        QObject::connect(accountSession, &AccountSessionService::registrationActivated, &q, [this] {
-            static_cast<void>(actionGate.dispatch(
-                [this] { ensureMainWindow().showSettingsLocation(QStringLiteral("account")); }));
-        });
         translationService = &translation::TranslationService::forClient(
             *translationClient, applicationStorage.configuration(),
             presentation::LanguageManager::instance().currentLocale());
@@ -1288,7 +1289,40 @@ class ApplicationController::Impl {
                          &permissions, &presentation::AppPermissionService::refresh);
         permissions.refresh();
 #endif
-        systemTray.show();
+        toolboxController = std::make_unique<toolbox::ToolboxController>(
+            toolbox::ToolboxActions{
+                [this] { dispatchQuickAction(presentation::GlobalShortcutAction::Screenshot); },
+                [this] { ensureScreenshotController()->pinClipboardContentToScreen(); },
+                [this] {
+                    ensureScreenshotController()->restoreActivePinnedGroupWindows();
+                    groupManager.requestShowAllWindows();
+                    for (auto* window : groupManager.liveWindows())
+                        static_cast<void>(window->automationUpdate(
+                            {{QStringLiteral("click_through"), false}}, nullptr));
+                },
+                [this] {
+                    if (screenshotController)
+                        screenshotController->mcpCancelCapture();
+                },
+                [this] {
+                    if (toolboxController)
+                        toolboxController->showCaptureSettings();
+                },
+                [this](bool enabled) {
+                    if (enabled) {
+                        ensureScreenshotController()->restoreActivePinnedGroupWindows();
+                        groupManager.requestShowAllWindows();
+                    } else
+                        for (auto* window : groupManager.liveWindows())
+                            window->hide();
+                }},
+            &q);
+        QObject::connect(
+            ensureScreenshotController(), &ScreenshotController::captureActivityChanged,
+            toolboxController.get(),
+            [this](const QString&, bool active) { toolboxController->captureActivity(active); });
+        QObject::connect(ensureScreenshotController(), &ScreenshotController::textRecognitionReady,
+                         toolboxController.get(), &toolbox::ToolboxController::presentText);
         globalShortcutManager.initialize();
         globalMouseManager.setCaptureAvailable(ensureScreenshotController()->captureAvailable());
         globalMouseManager.initialize();
@@ -1314,11 +1348,7 @@ class ApplicationController::Impl {
     }
 
     void finishStartup(std::function<void()> maintenance) {
-        deferredStartup.start({[this] { updates->start(); }, std::move(maintenance),
-                               [this] {
-                                   if (auto* controller = ensureScreenshotController())
-                                       controller->prewarmResources();
-                               },
+        deferredStartup.start({[this] { updates->start(); }, std::move(maintenance), [] {},
                                [this] { restorePinnedWindows(); },
                                [this] { applyOcrConfiguration(); },
                                [this] {
@@ -1690,9 +1720,19 @@ class ApplicationController::Impl {
             return;
         switch (action) {
         case presentation::GlobalShortcutAction::Screenshot:
-            if (ScreenshotController* controller = ensureScreenshotController()) {
-                controller->startCapture();
-            }
+            if (!toolbox::enabled(QStringLiteral("capture")))
+                break;
+            if (toolboxController)
+                toolboxController->captureActivity(true);
+            QTimer::singleShot(100, &q, [this] {
+                if (toolbox::enabled(QStringLiteral("capture")))
+                    if (ScreenshotController* controller = ensureScreenshotController())
+                        controller->startCapture();
+                QTimer::singleShot(1000, &q, [this] {
+                    if (toolboxController && ensureScreenshotController()->captureAvailable())
+                        toolboxController->captureActivity(false);
+                });
+            });
             break;
         case presentation::GlobalShortcutAction::ScreenshotDelay:
             if (ScreenshotController* controller = ensureScreenshotController()) {
@@ -1972,10 +2012,15 @@ class ApplicationController::Impl {
     void showMainWindow() {
         if (storage::ApplicationStorage::instance().directoryChanging())
             return;
-        ensureMainWindow().showAndActivate();
+        if (toolboxController)
+            toolboxController->showHome();
+        else
+            ensureMainWindow().showAndActivate();
     }
 
     void restorePinnedWindows() {
+        if (!toolbox::enabled(QStringLiteral("pin")))
+            return;
         static_cast<void>(actionGate.dispatch([this]() {
             if (ScreenshotController* controller = ensureScreenshotController()) {
                 controller->restorePinnedWindows();
@@ -2058,6 +2103,7 @@ class ApplicationController::Impl {
 #endif
     std::unique_ptr<ScreenshotOcrRecognitionService> ocrRecognition;
     std::unique_ptr<ScreenshotController> screenshotController;
+    std::unique_ptr<toolbox::ToolboxController> toolboxController;
     std::unique_ptr<presentation::GlobalCanvasController> globalCanvasController;
     // Graph cancellation borrows direct capture even when construction unwinds before Impl's
     // destructor can run its explicit shutdown sequence. Destroy both MCP owners first.

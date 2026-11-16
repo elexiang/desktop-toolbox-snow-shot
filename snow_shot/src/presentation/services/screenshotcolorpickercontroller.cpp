@@ -1,4 +1,5 @@
 #include "snow_shot/presentation/screenshotcolorpickercontroller.h"
+#include "../../toolbox/toolboxpaths.h"
 
 #include "snow_shot/platform/physicalcursor.h"
 #include "snow_shot/presentation/screenshotcolorpickerwindow.h"
@@ -95,6 +96,9 @@ void ScreenshotColorPickerController::updateAtPhysicalPoint(
     const QPoint logicalPoint = logicalPositionForPhysicalPoint(physicalPoint, *display);
     if (m_overlayCoordinator.screenshotUiContainsGlobalPoint(
             cursorLogicalPosition.value_or(logicalPoint))) {
+        m_overlayCoordinator.sampleColorPicker(display->image, display->physicalRect, physicalPoint,
+                                               QImage{}, {});
+        m_overlay = overlay;
         hide();
         return;
     }
@@ -102,9 +106,7 @@ void ScreenshotColorPickerController::updateAtPhysicalPoint(
                          context)) {
         // Keep color-copy commands current without moving the hidden native popup.
         m_overlayCoordinator.sampleColorPicker(display->image, display->physicalRect, physicalPoint,
-                                               m_displaySession.cursorVisible ? display->cursorPatch
-                                                                              : QImage{},
-                                               display->cursorPixelRect);
+                                               QImage{}, {});
         m_overlay = overlay;
         return;
     }
@@ -118,10 +120,9 @@ void ScreenshotColorPickerController::updateAtPhysicalPoint(
         context.selectionDisplayUnit, conversion.canvasUsesPoints,
         screenshotMagnifierRelativeDisplayPosition(m_geometry, *display, physicalPoint,
                                                    context.selectionPixels, conversion)};
-    m_overlayCoordinator.updateColorPicker(
-        overlay, display->image, display->physicalRect, physicalPoint, overlayLocalPosition,
-        displayValues, m_displaySession.cursorVisible ? display->cursorPatch : QImage{},
-        display->cursorPixelRect);
+    m_overlayCoordinator.updateColorPicker(overlay, display->image, display->physicalRect,
+                                           physicalPoint, overlayLocalPosition, displayValues,
+                                           QImage{}, {});
     m_overlay = overlay;
 }
 
@@ -201,13 +202,18 @@ void ScreenshotColorPickerController::updateAfterCursorMove(
 
 bool ScreenshotColorPickerController::copyColorToClipboard(
     const ScreenshotColorPickerContext& context) {
+    if (!enabled(context))
+        return false;
+    updateAtCurrentCursor(context);
     ScreenshotColorPickerWindow* picker = m_overlayCoordinator.colorPicker();
     if (m_overlay == nullptr || picker == nullptr || !picker->hasCurrentColor() ||
         !enabled(context)) {
         return false;
     }
 
-    QApplication::clipboard()->setText(picker->currentColorText());
+    const QColor color = picker->currentColor();
+    QApplication::clipboard()->setText(
+        QStringLiteral("RGB(%1, %2, %3)").arg(color.red()).arg(color.green()).arg(color.blue()));
     return true;
 }
 
@@ -235,8 +241,7 @@ bool ScreenshotColorPickerController::cycleFormat(const ScreenshotColorPickerCon
 }
 
 bool ScreenshotColorPickerController::enabled(const ScreenshotColorPickerContext& context) const {
-    return !m_suppressed && context.active && context.moveToolActive &&
-           (context.intelligentSelecting || context.manualSelecting || context.movingSelection);
+    return !m_suppressed && context.active && toolbox::enabled(QStringLiteral("color"));
 }
 
 const CapturedDisplayModel*

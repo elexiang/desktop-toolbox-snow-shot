@@ -245,10 +245,6 @@
     <context>
         <name>snow_shot::translation::TranslationJob</name>
         <message>
-            <source>The model returned no content</source>
-            <translation>模型未返回内容</translation>
-        </message>
-        <message>
             <source>Translation request could not be prepared</source>
             <translation>无法准备翻译请求</translation>
         </message>
@@ -274,6 +270,10 @@
         <message>
             <source>No translation services are available</source>
             <translation>没有可用的翻译服务</translation>
+        </message>
+        <message>
+            <source>Offline Chinese / English</source>
+            <translation>本地中英离线翻译</translation>
         </message>
         <message>
             <source>Translation service is unavailable</source>

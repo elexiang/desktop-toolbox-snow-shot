@@ -1,4 +1,5 @@
 #include "snow_shot/presentation/screenshotstylebinding.h"
+#include "../../toolbox/toolboxpaths.h"
 #include "snow_shot/presentation/screenshotoverlayuihost.h"
 
 #include "../capture/screenshotcaptureperfinstrumentation.h"
@@ -235,9 +236,18 @@ class ScreenshotShortcutHintsWidget final : public QWidget {
     }
 
     void updateTranslatedLines() {
-        const QVector<ScreenshotShortcutHintRow> nextRows =
-            m_context.has_value() ? screenshotShortcutHintRows(*m_context)
-                                  : screenshotShortcutHintRows(m_mode);
+        QVector<ScreenshotShortcutHintRow> nextRows = m_context.has_value()
+                                                          ? screenshotShortcutHintRows(*m_context)
+                                                          : screenshotShortcutHintRows(m_mode);
+        if (toolbox::enabled(QStringLiteral("color")) &&
+            (m_context.has_value() ? m_context->captureMode != ScreenshotCaptureMode::Inactive
+                                   : m_mode != ScreenshotShortcutHintMode::Hidden)) {
+            nextRows.append({QCoreApplication::translate("ScreenshotShortcutHintsWidget",
+                                                         "Copy original pixel color"),
+                             QStringLiteral("C: RGB / X: HEX"),
+                             ScreenshotShortcutHintInput::Keyboard,
+                             {}});
+        }
         if (m_rows != nextRows) {
             m_rows = nextRows;
             setAccessibleName(screenshotShortcutHintLines(m_rows).join(QLatin1Char('\n')));

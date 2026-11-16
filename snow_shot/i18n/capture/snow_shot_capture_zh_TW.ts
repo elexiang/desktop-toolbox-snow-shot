@@ -522,6 +522,10 @@
             <translation>自動對齊</translation>
         </message>
         <message>
+            <source>Copy original pixel color</source>
+            <translation>複製原始像素顏色</translation>
+        </message>
+        <message>
             <source>Delete selected elements</source>
             <translation>刪除選取的元素</translation>
         </message>

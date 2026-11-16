@@ -396,6 +396,12 @@ if(APPLE)
         "CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO=packed"
         "CARGO_PROFILE_RELEASE_FAST_SPLIT_DEBUGINFO=packed")
 endif()
+set(SNOW_TOOLBOX_OCR_EXECUTABLE "" CACHE FILEPATH "Optional verified upstream OCR worker")
+if(SNOW_TOOLBOX_OCR_EXECUTABLE)
+    add_executable(snow_ocr_process IMPORTED GLOBAL)
+    set_target_properties(snow_ocr_process PROPERTIES IMPORTED_LOCATION "${SNOW_TOOLBOX_OCR_EXECUTABLE}")
+    add_custom_target(snow_ocr_process_build)
+else()
 snow_add_rust_executable(snow_ocr_process
     PACKAGE snow-ocr-process
     MANIFEST_DIR "${SNOW_SHOT_CAPTURE_CRATES_DIR}"
@@ -406,6 +412,7 @@ snow_add_rust_executable(snow_ocr_process
     FEATURES ${SNOW_SHOT_OCR_PROCESS_FEATURES}
     ENVIRONMENT ${SNOW_SHOT_OCR_PROCESS_ENVIRONMENT}
 )
+endif()
 
 # The MCP bridge is deliberately a small standalone process.  It only speaks
 # MCP over stdio and connects to an already running Snow Shot instance through
@@ -820,6 +827,8 @@ target_link_libraries(snow_shot_storage PUBLIC
 )
 
 add_library(snow_shot_translation STATIC
+    src/toolbox/offlinetranslator.h
+    src/toolbox/offlinetranslator.cpp
     include/snow_shot/app/accountsessionservice.h
     src/app/accountsessionservice.cpp
     include/snow_shot/storage/accountsecretstore.h
@@ -2224,6 +2233,12 @@ qt_add_executable(snow_shot
     MANUAL_FINALIZATION
     ${PROJECT_SOURCES}
 )
+target_sources(snow_shot PRIVATE
+    src/toolbox/quotaservice.h src/toolbox/quotaservice.cpp
+    src/toolbox/memoryservice.h src/toolbox/memoryservice.cpp
+    src/toolbox/toolboxcontroller.h src/toolbox/toolboxcontroller.cpp)
+target_link_libraries(snow_shot PRIVATE psapi shell32 advapi32 Qt6::Concurrent)
+set_target_properties(snow_shot PROPERTIES OUTPUT_NAME SnowToolbox)
 snow_shot_link_macos_window_platform(snow_shot)
 if(WIN32 AND SNOW_SHOT_DISTRIBUTION_CHANNEL STREQUAL "store")
     add_dependencies(snow_shot snow_shot_explorer_command)

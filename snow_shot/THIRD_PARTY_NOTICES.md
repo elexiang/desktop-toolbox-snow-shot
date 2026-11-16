@@ -1,5 +1,31 @@
 # Snow Shot Third-Party Notices
 
+## Snow Toolbox local extensions
+
+This fork adds a local Codex quota card, feature controls, memory operations,
+and offline Chinese/English translation. New extension code is GPL-3.0-or-later.
+The original Snow Shot notices and component licenses remain applicable.
+
+The offline runtime adds Python 3.12.10 (PSF), CTranslate2 4.9.0 (MIT),
+SentencePiece 0.2.3 (Apache-2.0), NumPy 2.5.4 and PyYAML 6.0.3. Their license
+and copyright files are retained in the bundled Python distribution and
+`dist-info` directories. The two Argos/OPUS translation models are
+`translate-en_zh-1_9` and `translate-zh_en-1_9`; their author README files,
+attribution and CC-BY-4.0 terms are retained in `runtime/models`.
+
+Upstreams: https://www.python.org/,
+https://github.com/OpenNMT/CTranslate2,
+https://github.com/google/sentencepiece,
+https://numpy.org/, https://pyyaml.org/,
+https://github.com/argosopentech/argospm-index.
+
+This build uses the official shared Qt 6.12.0 MSVC x64 kit. Its license texts
+and REUSE metadata are collected from the matching verified Qt source archive.
+The OCR worker and models come from the verified Snow Shot 1.5.7 portable
+release; its original versioned license bundle is included separately.
+
+## Upstream notice bundle
+
 Snow Shot incorporates third-party software and assets under their respective
 licenses. The release build generates a complete, versioned notice bundle from
 the resolved Rust dependency graph, installed vcpkg packages, the audited

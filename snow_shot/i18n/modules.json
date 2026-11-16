@@ -158,5 +158,11 @@
     "UpdateProgress",
     "UpdateService",
     "snow_shot::update::UpdateService"
+  ],
+  "toolbox": [
+    "toolbox::MemoryService",
+    "toolbox::OfflineTranslator",
+    "toolbox::QuotaService",
+    "toolbox::ToolboxController"
   ]
 }

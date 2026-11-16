@@ -522,6 +522,10 @@
             <translation>Auto-align</translation>
         </message>
         <message>
+            <source>Copy original pixel color</source>
+            <translation>Copy original pixel color</translation>
+        </message>
+        <message>
             <source>Delete selected elements</source>
             <translation>Delete selected elements</translation>
         </message>

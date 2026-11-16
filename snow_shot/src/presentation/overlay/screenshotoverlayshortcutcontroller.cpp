@@ -14,6 +14,11 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QMap>
+#include <QApplication>
+#include <QClipboard>
+#include <QRegularExpression>
+#include <QColor>
+#include "../../toolbox/toolboxpaths.h"
 
 #include <utility>
 
@@ -136,6 +141,8 @@ struct ScreenshotOverlayShortcutController::Impl {
     }
 
     bool activateToolbarShortcut(const QString& id, bool drawing) {
+        if (drawing && !toolbox::enabled(QStringLiteral("annotation")))
+            return false;
         if (!canActivateToolbarShortcut() || !inputHandler.acceptInput()) {
             return false;
         }
@@ -175,6 +182,28 @@ struct ScreenshotOverlayShortcutController::Impl {
     }
 
     void registerFixedBindings() {
+        static_cast<void>(shortcutManager.addBinding(
+            &q, fixedBinding(
+                    QStringLiteral("toolbox.copy_hex"), {QKeyCombination(Qt::Key_X)},
+                    ShortcutManager::StandardPriority::ScreenshotShortcut,
+                    [this] {
+                        return !interaction.inactive() && !interaction.dragging() &&
+                               toolbox::enabled(QStringLiteral("color")) &&
+                               actions.localShortcutInputAllowed();
+                    },
+                    [this] {
+                        if (!actions.copyColorPickerColorToClipboard())
+                            return false;
+                        const auto match =
+                            QRegularExpression(QStringLiteral("RGB\\((\\d+), (\\d+), (\\d+)\\)"))
+                                .match(QApplication::clipboard()->text());
+                        if (!match.hasMatch())
+                            return false;
+                        const QColor color(match.captured(1).toInt(), match.captured(2).toInt(),
+                                           match.captured(3).toInt());
+                        QApplication::clipboard()->setText(color.name(QColor::HexRgb).toUpper());
+                        return true;
+                    })));
         QList<QKeyCombination> selectAllKeys;
         for (const auto& sequence : QKeySequence::keyBindings(QKeySequence::SelectAll))
             selectAllKeys.append(sequence[0]);
@@ -368,7 +397,7 @@ struct ScreenshotOverlayShortcutController::Impl {
                 }
                 if (actionId == QStringLiteral("copy_color") ||
                     actionId == QStringLiteral("toggle_coordinate_mode")) {
-                    return interaction.moveToolActive() && actions.localShortcutInputAllowed();
+                    return !interaction.inactive() && actions.localShortcutInputAllowed();
                 }
                 if (actionId.startsWith(QStringLiteral("move_cursor_"))) {
                     return cursorMovementShortcutState();
@@ -440,7 +469,6 @@ struct ScreenshotOverlayShortcutController::Impl {
                     if (!actions.copyColorPickerColorToClipboard()) {
                         return false;
                     }
-                    actions.cancelCapture();
                     return true;
                 }
                 if (actionId == QStringLiteral("cancel_screenshot")) {

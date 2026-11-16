@@ -151,6 +151,7 @@ class ScreenshotController : public QObject {
     void mcpRedoCanvasEdit();
 
   signals:
+    void textRecognitionReady(const QString& text);
     void imageStitchingRequested(const QVector<ScreenshotPinnedImageSnapshot>& snapshots);
     void imageSplittingRequested(const snow_shot::presentation::ImageSplitSource& source);
     void scrollingImageEditingRequested(const ScreenshotExportSource& source);
