@@ -2373,6 +2373,22 @@ set(SNOW_SHOT_RECOGNITION_IMAGE_RENDER_SOURCES
     src/presentation/overlay/screenshotselectionshadowrenderer.cpp)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SnowShotRuntimeTests.cmake")
+if(SNOW_SHOT_BUILD_RUNTIME_TESTS AND NOT SNOW_SHOT_BUILD_TESTS)
+    add_executable(snow-toolbox-circle-export-tests tests/toolbox/circle_export_tests.cpp
+        src/presentation/overlay/screenshotselectionshadowrenderer.cpp)
+    target_include_directories(snow-toolbox-circle-export-tests PRIVATE include)
+    target_link_libraries(snow-toolbox-circle-export-tests PRIVATE Qt6::Gui snow_draw_engine_qt_canvas ant_design_qt)
+    set_target_properties(snow-toolbox-circle-export-tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-bin")
+    add_executable(snow-toolbox-barcode-tests tests/screenshot_qr_recognition_service_tests.cpp
+        include/snow_shot/presentation/screenshotqrrecognitionservice.h
+        src/presentation/ocr/screenshotqrrecognitionservice.cpp)
+    target_include_directories(snow-toolbox-barcode-tests PRIVATE include)
+    target_link_libraries(snow-toolbox-barcode-tests PRIVATE snow_canvas_image opencv_wechat_qrcode
+        opencv_objdetect Qt6::Core Qt6::Gui)
+    set_target_properties(snow-toolbox-barcode-tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-bin")
+    add_custom_command(TARGET snow-toolbox-barcode-tests POST_BUILD COMMAND "${CMAKE_COMMAND}" -E
+        copy_directory "${SNOW_SHOT_QR_MODELS_DIR}" "$<TARGET_FILE_DIR:snow-toolbox-barcode-tests>/assets/qrcode")
+endif()
 
 if(SNOW_SHOT_BUILD_TESTS)
     # Private C ABI names keep these fixtures' mocks distinct from the real

@@ -2,6 +2,7 @@
 #pragma once
 #include "quotaservice.h"
 #include "memoryservice.h"
+#include "quotacard.h"
 #include <QWidget>
 #include <QSystemTrayIcon>
 #include <QLabel>
@@ -15,6 +16,8 @@ namespace toolbox {
 struct ToolboxActions {
     std::function<void()> capture, pastePin, restorePins, cancelCapture, openCaptureSettings;
     std::function<void(bool)> setPinsEnabled = [](bool) {};
+    std::function<bool()> autoStartEnabled = [] { return false; };
+    std::function<QString(bool)> setAutoStart = [](bool) { return QString(); };
 };
 class ToolboxController final : public QObject {
     Q_OBJECT
@@ -36,9 +39,10 @@ class ToolboxController final : public QObject {
     ToolboxActions m_actions;
     QuotaService m_quota;
     MemoryService m_memory;
-    QWidget *m_home = nullptr, *m_card = nullptr, *m_detail = nullptr;
-    QLabel *m_quotaLabel = nullptr, *m_cardLabel = nullptr, *m_detailLabel = nullptr,
-           *m_memoryLabel = nullptr, *m_status = nullptr, *m_detailStatus = nullptr;
+    QWidget *m_home = nullptr, *m_detail = nullptr;
+    QuotaCard* m_card = nullptr;
+    QLabel *m_quotaLabel = nullptr, *m_detailLabel = nullptr, *m_memoryLabel = nullptr,
+           *m_status = nullptr, *m_detailStatus = nullptr;
     QSystemTrayIcon m_tray;
     QMenu m_menu;
     QTimer m_hover, m_leave;
@@ -61,7 +65,7 @@ class ToolboxController final : public QObject {
     void clean(bool deep);
     void runContext(const QString& action);
     void finishContext();
-    QString quotaHtml(bool compact) const;
+    QString quotaHtml() const;
     QString memoryHtml() const;
 };
 } // namespace toolbox

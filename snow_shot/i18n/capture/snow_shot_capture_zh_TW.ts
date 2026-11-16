@@ -258,6 +258,10 @@
             <translation>按 %1 切換區域類型</translation>
         </message>
         <message>
+            <source>Circle region</source>
+            <translation>圓形選區</translation>
+        </message>
+        <message>
             <source>Curve region</source>
             <translation>曲線區域</translation>
         </message>

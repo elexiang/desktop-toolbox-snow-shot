@@ -727,7 +727,18 @@ void ScreenshotOverlayInputHandler::handleMouseRelease(ScreenshotOverlayWindow* 
         return;
     }
     if (customRegionInputActive()) {
+        if (m_context.selection.regionType() == ScreenshotRegionType::Circle &&
+            m_context.selection.constructionActive() && !m_regionPoints.isEmpty()) {
+            m_regionPoints = {m_regionPoints.first(), virtualPosition};
+            if (!finishRegionDraft()) {
+                m_regionPoints.clear();
+                m_context.selection.clearDraftRegion();
+                m_context.actions.updateOverlayState();
+            }
+            return;
+        }
         if (m_freehandPressed) {
+            // Freehand strokes are committed when the pointer is released.
             m_freehandFilter.append(virtualPosition);
             flushFreehandPoints(true);
             m_freehandPressed = false;
@@ -1788,6 +1799,8 @@ void ScreenshotOverlayInputHandler::setRegionType(ScreenshotRegionType type) {
     static_cast<void>(cancelEffectDrag());
     if (type == m_context.selection.regionType())
         return;
+    const auto previousType = m_context.selection.regionType();
+    const auto previousBounds = m_context.selection.normalizedSelection();
     m_regionPreviewTimer.stop();
     const bool selecting =
         m_context.interaction.selecting() || m_context.selection.regionOperationActive();
@@ -1802,6 +1815,21 @@ void ScreenshotOverlayInputHandler::setRegionType(ScreenshotRegionType type) {
             m_context.selection.clearSelection();
     }
     m_context.selection.setRegionType(type);
+    if (!selecting && m_context.selection.hasPixelSelection()) {
+        if (type == ScreenshotRegionType::Circle) {
+            const auto diameter = std::min(previousBounds.width(), previousBounds.height());
+            const QRectF square(previousBounds.center() - QPointF(diameter / 2, diameter / 2),
+                                QSizeF(diameter, diameter));
+            m_context.selection.setSelectionRegion(ScreenshotRegionGeometry::fromPath(
+                screenshotCircleRegionPath(square.topLeft(), square.bottomRight(),
+                                           m_context.geometry.canvasBounds()),
+                type));
+            static_cast<void>(m_context.selection.setBackgroundOpacityPercent(0));
+        } else if (previousType == ScreenshotRegionType::Circle &&
+                   type == ScreenshotRegionType::Rectangle) {
+            m_context.selection.setSelectionRect(previousBounds);
+        }
+    }
     setScreenshotRegionPreference(type);
     m_context.actions.pauseIntelligentSelection();
     m_context.intelligentSelection.clearTransientState();
@@ -1819,7 +1847,7 @@ bool ScreenshotOverlayInputHandler::cycleRegionType(bool reverse) {
         !(m_context.interaction.selecting() || m_context.interaction.moveToolActive()))
         return false;
     setRegionType(
-        ScreenshotRegionType((int(m_context.selection.regionType()) + (reverse ? 3 : 1)) % 4));
+        ScreenshotRegionType((int(m_context.selection.regionType()) + (reverse ? 4 : 1)) % 5));
     return true;
 }
 
@@ -1872,7 +1900,10 @@ void ScreenshotOverlayInputHandler::updateRegionDraft(const QPointF& pointer, bo
         vertices.last() == vertices.first())
         vertices.removeLast();
     QPainterPath path;
-    if (type == ScreenshotRegionType::Curve || type == ScreenshotRegionType::Freehand) {
+    if (type == ScreenshotRegionType::Circle && vertices.size() >= 2) {
+        path = screenshotCircleRegionPath(vertices.first(), vertices.last(),
+                                          m_context.geometry.canvasBounds());
+    } else if (type == ScreenshotRegionType::Curve || type == ScreenshotRegionType::Freehand) {
         path = snowCanvasCatmullRomPath(vertices, vertices.size() >= 3);
     } else if (!vertices.isEmpty()) {
         path.moveTo(vertices.first());
@@ -1883,15 +1914,16 @@ void ScreenshotOverlayInputHandler::updateRegionDraft(const QPointF& pointer, bo
     }
     path.setFillRule(Qt::OddEvenFill);
     auto draft = ScreenshotRegionGeometry::fromPath(path, m_context.selection.regionType());
-    m_context.selection.setDraftRegion(draft, m_context.selection.regionType() ==
-                                                      ScreenshotRegionType::Freehand
-                                                  ? QVector<QPointF>()
-                                                  : m_regionPoints);
+    m_context.selection.setDraftRegion(
+        draft, (type == ScreenshotRegionType::Freehand || type == ScreenshotRegionType::Circle)
+                   ? QVector<QPointF>()
+                   : m_regionPoints);
     m_context.actions.updateOverlayState();
 }
 
 bool ScreenshotOverlayInputHandler::finishRegionDraft() {
-    if (m_regionPoints.size() < 3)
+    if (m_regionPoints.size() <
+        (m_context.selection.regionType() == ScreenshotRegionType::Circle ? 2 : 3))
         return false;
     if (m_context.selection.regionType() == ScreenshotRegionType::Freehand) {
         qreal scale = 1.0;
@@ -1909,6 +1941,8 @@ bool ScreenshotOverlayInputHandler::finishRegionDraft() {
     if (m_context.selection.draftPath().simplified().isEmpty())
         return false;
     m_context.selection.commitDraftRegion(m_context.geometry.canvasBounds().toAlignedRect());
+    if (m_context.selection.regionType() == ScreenshotRegionType::Circle)
+        static_cast<void>(m_context.selection.setBackgroundOpacityPercent(0));
     m_regionPoints.clear();
     m_context.interaction.finishDrag();
     if (!m_context.selection.hasPixelSelection()) {
@@ -1925,7 +1959,8 @@ bool ScreenshotOverlayInputHandler::handleRegionDoubleClick(ScreenshotOverlayWin
     if (!customRegionInputActive())
         return false;
     m_consumeRegionRelease = true;
-    if (m_context.selection.regionType() == ScreenshotRegionType::Freehand)
+    if (m_context.selection.regionType() == ScreenshotRegionType::Freehand ||
+        m_context.selection.regionType() == ScreenshotRegionType::Circle)
         return true;
     const auto point = virtualPositionForOverlay(overlay, position);
     if (m_regionPoints.isEmpty())

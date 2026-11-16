@@ -2925,6 +2925,8 @@ void ScreenshotController::Impl::setTableTool() {
 }
 
 void ScreenshotController::Impl::setQrTool() {
+    if (!toolbox::enabled(QStringLiteral("barcode")))
+        return;
 #if SNOW_SHOT_ENABLE_QR_RECOGNITION
     const bool scrollingCaptureStopped = stopScrollingCapture(true);
     if (!ensureRecognitionFeature()) {

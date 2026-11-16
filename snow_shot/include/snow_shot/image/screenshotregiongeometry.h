@@ -16,7 +16,7 @@
 #include <memory>
 #include <optional>
 
-enum class ScreenshotRegionType { Rectangle, Polyline, Curve, Freehand };
+enum class ScreenshotRegionType { Rectangle, Polyline, Curve, Freehand, Circle };
 
 inline QString screenshotRegionTypeId(ScreenshotRegionType type) {
     switch (type) {
@@ -26,6 +26,8 @@ inline QString screenshotRegionTypeId(ScreenshotRegionType type) {
         return QStringLiteral("curve");
     case ScreenshotRegionType::Freehand:
         return QStringLiteral("freehand");
+    case ScreenshotRegionType::Circle:
+        return QStringLiteral("circle");
     default:
         return QStringLiteral("rectangle");
     }
@@ -38,7 +40,23 @@ inline ScreenshotRegionType screenshotRegionTypeFromId(const QString& id) {
         return ScreenshotRegionType::Curve;
     if (id == QStringLiteral("freehand"))
         return ScreenshotRegionType::Freehand;
+    if (id == QStringLiteral("circle"))
+        return ScreenshotRegionType::Circle;
     return ScreenshotRegionType::Rectangle;
+}
+
+inline QPainterPath screenshotCircleRegionPath(const QPointF& anchor, QPointF pointer,
+                                               const QRectF& bounds) {
+    pointer.setX(std::clamp(pointer.x(), bounds.left(), bounds.right()));
+    pointer.setY(std::clamp(pointer.y(), bounds.top(), bounds.bottom()));
+    const auto delta = pointer - anchor;
+    const qreal diameter = std::min(std::abs(delta.x()), std::abs(delta.y()));
+    QPainterPath path;
+    if (diameter >= 1)
+        path.addEllipse(QRectF(anchor, anchor + QPointF(std::copysign(diameter, delta.x()),
+                                                        std::copysign(diameter, delta.y())))
+                            .normalized());
+    return path;
 }
 
 // Rectangle-only regions retain their exact integer representation. Custom regions

@@ -4,6 +4,8 @@
 #include "memoryservice.h"
 #include "toolboxpaths.h"
 #include "snow_shot/presentation/screenshotcolorpickercontroller.h"
+#include "snow_shot/image/screenshotregiongeometry.h"
+#include <QPainter>
 #include <QApplication>
 #include <QEventLoop>
 #include <QTemporaryDir>
@@ -22,6 +24,26 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QTemporaryDir temporary;
     qputenv("SNOW_TOOLBOX_DATA", temporary.path().toUtf8());
+    const QRectF circleBounds(-200, -100, 800, 600);
+    for (const auto& pointer : {QPointF(100, 50), QPointF(-100, -80), QPointF(900, 900)}) {
+        const auto path = screenshotCircleRegionPath(QPointF(0, 0), pointer, circleBounds);
+        const auto bounds = path.boundingRect();
+        require(bounds.width() == bounds.height() && circleBounds.contains(bounds),
+                "circle constrained and bounded");
+        require(path.contains(bounds.center()) && !path.contains(bounds.topLeft()),
+                "circle excludes transparent corners");
+        const auto region = ScreenshotRegionGeometry::fromPath(path, ScreenshotRegionType::Circle);
+        const auto restored = ScreenshotRegionGeometry::fromJson(region.toJson());
+        require(restored && *restored == region, "circle region persistence");
+        QImage image(100, 100, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        painter.setClipPath(screenshotCircleRegionPath({0, 0}, {100, 100}, {0, 0, 100, 100}));
+        painter.fillRect(image.rect(), Qt::blue);
+        painter.end();
+        require(qAlpha(image.pixel(0, 0)) == 0 && qAlpha(image.pixel(50, 50)) == 255,
+                "circle export mask transparency");
+    }
     ScreenshotColorPickerContext picker;
     picker.active = true;
     picker.intelligentSelecting = true;

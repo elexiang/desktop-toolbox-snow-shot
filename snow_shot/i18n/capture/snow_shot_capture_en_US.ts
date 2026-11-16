@@ -258,6 +258,10 @@
             <translation>%1 to switch region type</translation>
         </message>
         <message>
+            <source>Circle region</source>
+            <translation>Circle region</translation>
+        </message>
+        <message>
             <source>Curve region</source>
             <translation>Curve region</translation>
         </message>

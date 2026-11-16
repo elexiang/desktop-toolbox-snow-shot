@@ -185,6 +185,10 @@
             <translation>Color picker</translation>
         </message>
         <message>
+            <source>Compact dual capsules</source>
+            <translation>Compact dual capsules</translation>
+        </message>
+        <message>
             <source>Complete · the model exits after 60 seconds idle</source>
             <translation>Complete · the model exits after 60 seconds idle</translation>
         </message>
@@ -209,6 +213,10 @@
             <translation>Deep cleanup…</translation>
         </message>
         <message>
+            <source>Desktop card style</source>
+            <translation>Desktop card style</translation>
+        </message>
+        <message>
             <source>Desktop quota card</source>
             <translation>Desktop quota card</translation>
         </message>
@@ -231,6 +239,10 @@
         <message>
             <source>English → Chinese</source>
             <translation>English → Chinese</translation>
+        </message>
+        <message>
+            <source>Four-row pebble</source>
+            <translation>Four-row pebble</translation>
         </message>
         <message>
             <source>Local text recognition and translation</source>
@@ -283,6 +295,10 @@
         <message>
             <source>Pinned images</source>
             <translation>Pinned images</translation>
+        </message>
+        <message>
+            <source>QR codes and barcodes</source>
+            <translation>QR codes and barcodes</translation>
         </message>
         <message>
             <source>Quit toolbox</source>
@@ -385,12 +401,16 @@
             <translation>Snow Toolbox</translation>
         </message>
         <message>
-            <source>Snow Toolbox · 0.2.1</source>
-            <translation>Snow Toolbox · 0.2.1</translation>
+            <source>Snow Toolbox · 0.3.0</source>
+            <translation>Snow Toolbox · 0.3.0</translation>
         </message>
         <message>
             <source>Snow Toolbox · local and lightweight</source>
             <translation>Snow Toolbox · local and lightweight</translation>
+        </message>
+        <message>
+            <source>Start with Windows</source>
+            <translation>Start with Windows</translation>
         </message>
         <message>
             <source>Text and translation panel</source>

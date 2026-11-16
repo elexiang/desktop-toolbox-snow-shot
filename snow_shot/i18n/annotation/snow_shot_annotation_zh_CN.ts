@@ -319,6 +319,10 @@
             <translation>圆形</translation>
         </message>
         <message>
+            <source>Circle region</source>
+            <translation>圆形选区</translation>
+        </message>
+        <message>
             <source>Click-through</source>
             <translation>鼠标穿透</translation>
         </message>

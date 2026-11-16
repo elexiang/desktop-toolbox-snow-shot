@@ -144,6 +144,7 @@ int main(int argc, char* argv[]) {
             return 5;
         bool ok = true;
         auto& configuration = storage.configuration();
+        configuration.setValue(QStringLiteral("system/auto_start_at_boot"), true);
         QObject::connect(&configuration, &snow_shot::storage::ConfigurationStore::mutationRejected,
                          &probe, [&](const QString& key, const QString& error) {
                              qWarning().noquote() << key << error;
@@ -152,10 +153,11 @@ int main(int argc, char* argv[]) {
         for (bool enabled : {true, false, true}) {
             QSettings settings(toolbox::settingsPath(), QSettings::IniFormat);
             for (const auto& module :
-                 {"capture", "annotation", "color", "pin", "ocr", "translation"})
+                 {"capture", "annotation", "color", "pin", "ocr", "translation", "barcode"})
                 settings.setValue(QString::fromLatin1(module), enabled);
             settings.sync();
-            ok = toolbox::ToolboxController::configureCapture() && ok;
+            ok = toolbox::ToolboxController::configureCapture() && ok &&
+                 configuration.value(QStringLiteral("system/auto_start_at_boot")).toBool();
             const auto values = configuration.snapshot();
             int globalCount = 0;
             for (auto it = values.cbegin(); it != values.cend(); ++it)
@@ -177,7 +179,7 @@ int main(int argc, char* argv[]) {
             for (const auto& group : actions)
                 for (const auto& id : group.toArray())
                     ids.insert(id.toString());
-            ok = ok && ids.size() == (enabled ? 6 : 3) && ids.contains(QStringLiteral("copy")) &&
+            ok = ok && ids.size() == (enabled ? 7 : 3) && ids.contains(QStringLiteral("copy")) &&
                  ids.contains(QStringLiteral("save-as-file")) &&
                  ids.contains(QStringLiteral("text-recognition")) == enabled &&
                  ids.contains(QStringLiteral("text-translation")) == enabled &&

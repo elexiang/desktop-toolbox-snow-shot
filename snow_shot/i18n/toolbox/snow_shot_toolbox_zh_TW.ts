@@ -185,6 +185,10 @@
             <translation>屏幕取色</translation>
         </message>
         <message>
+            <source>Compact dual capsules</source>
+            <translation>橫向雙色膠囊</translation>
+        </message>
+        <message>
             <source>Complete · the model exits after 60 seconds idle</source>
             <translation>已完成 · 閒置 60 秒後退出模型進程</translation>
         </message>
@@ -209,6 +213,10 @@
             <translation>深度清理…</translation>
         </message>
         <message>
+            <source>Desktop card style</source>
+            <translation>桌面卡片樣式</translation>
+        </message>
+        <message>
             <source>Desktop quota card</source>
             <translation>桌面額度卡片</translation>
         </message>
@@ -231,6 +239,10 @@
         <message>
             <source>English → Chinese</source>
             <translation>英文 → 中文</translation>
+        </message>
+        <message>
+            <source>Four-row pebble</source>
+            <translation>四行鵝卵石</translation>
         </message>
         <message>
             <source>Local text recognition and translation</source>
@@ -283,6 +295,10 @@
         <message>
             <source>Pinned images</source>
             <translation>屏幕貼圖</translation>
+        </message>
+        <message>
+            <source>QR codes and barcodes</source>
+            <translation>二維碼和條形碼</translation>
         </message>
         <message>
             <source>Quit toolbox</source>
@@ -385,12 +401,16 @@
             <translation>Snow 工具箱</translation>
         </message>
         <message>
-            <source>Snow Toolbox · 0.2.1</source>
-            <translation>Snow 工具箱 · 0.2.1</translation>
+            <source>Snow Toolbox · 0.3.0</source>
+            <translation>Snow 工具箱 · 0.3.0</translation>
         </message>
         <message>
             <source>Snow Toolbox · local and lightweight</source>
             <translation>Snow 工具箱 · 本地輕量</translation>
+        </message>
+        <message>
+            <source>Start with Windows</source>
+            <translation>開機啓動</translation>
         </message>
         <message>
             <source>Text and translation panel</source>

@@ -762,7 +762,8 @@ constexpr SchemaString kSchemaStrings120[] = {u"quick.screenshot",
                                               u"tray.restart-app",
                                               u"tray.exit"};
 constexpr SchemaAllowedValues kSchemaAllowed51 = {kSchemaStrings120, std::size(kSchemaStrings120)};
-constexpr SchemaString kSchemaStrings121[] = {u"rectangle", u"polyline", u"curve", u"freehand"};
+constexpr SchemaString kSchemaStrings121[] = {u"rectangle", u"polyline", u"curve", u"freehand",
+                                              u"circle"};
 constexpr SchemaAllowedValues kSchemaAllowed52 = {kSchemaStrings121, std::size(kSchemaStrings121)};
 constexpr SchemaString kSchemaStrings122[] = {u"window_sub_element", u"window", u"disabled"};
 constexpr SchemaAllowedValues kSchemaAllowed53 = {kSchemaStrings122, std::size(kSchemaStrings122)};
@@ -903,7 +904,7 @@ constexpr SchemaEntryDescriptor kEntryDescriptors[] = {
      nullptr, &kSchemaAllowed5},
     {u"system/memory_optimization_policy", stringDefault(u"smart_control"),
      ConfigurationValueKind::String, nullptr, &kSchemaAllowed6},
-    {u"system/auto_start_at_boot", booleanDefault(true), ConfigurationValueKind::Boolean},
+    {u"system/auto_start_at_boot", booleanDefault(false), ConfigurationValueKind::Boolean},
     {u"system/context_menu_mode", stringDefault(u"image_files"), ConfigurationValueKind::String,
      nullptr, &kSchemaAllowed7},
     {u"system/annotation_mode_when_opening_for_editing", booleanDefault(true),

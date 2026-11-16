@@ -22,11 +22,31 @@
 #include <QElapsedTimer>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QComboBox>
 #include <cstdlib>
 #include <cstdio>
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--render-card-samples"))) {
+        QFontDatabase::addApplicationFont(QStringLiteral("C:/Windows/Fonts/msyh.ttc"));
+        QDir().mkpath(QStringLiteral("artifacts/toolbox-ui"));
+        toolbox::QuotaCard card;
+        const QList<toolbox::QuotaWindow> windows{
+            {{}, 60, QDateTime(QDate::currentDate(), QTime(15, 16)), QStringLiteral("5h")},
+            {{},
+             37,
+             QDateTime(QDate::currentDate().addDays(2), QTime(16, 9)),
+             QStringLiteral("w")}};
+        for (bool stacked : {false, true}) {
+            card.present(windows, false, true, stacked, {});
+            card.show();
+            app.processEvents();
+            card.grab().save(stacked ? QStringLiteral("artifacts/toolbox-ui/v030-stacked.png")
+                                     : QStringLiteral("artifacts/toolbox-ui/v030-compact.png"));
+        }
+        return 0;
+    }
     if (app.arguments().contains(QStringLiteral("--make-ocr-fixture"))) {
         QFontDatabase::addApplicationFont(QStringLiteral("C:/Windows/Fonts/msyh.ttc"));
         QImage image(700, 200, QImage::Format_RGB32);
@@ -113,7 +133,16 @@ int main(int argc, char** argv) {
     QTranslator translator;
     if (translator.load(app.applicationDirPath() + QStringLiteral("/toolbox_zh_CN.qm")))
         app.installTranslator(&translator);
-    toolbox::ToolboxController controller({[] {}, [] {}, [] {}, [] {}, [] {}}, &app);
+    bool autoStartState = false;
+    int autoStartChanges = 0;
+    toolbox::ToolboxActions actions{[] {}, [] {}, [] {}, [] {}, [] {}};
+    actions.autoStartEnabled = [&] { return autoStartState; };
+    actions.setAutoStart = [&](bool value) {
+        autoStartState = value;
+        ++autoStartChanges;
+        return QString();
+    };
+    toolbox::ToolboxController controller(actions, &app);
     controller.showHome();
     if (verify)
         QTimer::singleShot(0, &app, [&] {
@@ -133,15 +162,29 @@ int main(int argc, char** argv) {
             require(home && card && home->isVisible() && card->isVisible());
             require(!QImage(QStringLiteral(":/toolbox/reset.svg")).isNull(),
                     "reset icon must load");
-            auto* cardValues = card->findChild<QLabel*>(QStringLiteral("QuotaCardValues"));
-            require(cardValues && cardValues->text().contains(QStringLiteral("5h")) &&
-                        cardValues->text().contains(QStringLiteral("w")) &&
-                        cardValues->text().contains(QStringLiteral("reset.svg")) &&
-                        !cardValues->text().contains(QStringLiteral("Codex")),
-                    "compact quota content");
-            require(!cardValues->wordWrap() && card->height() <= 36 &&
-                        cardValues->contentsRect().width() >= cardValues->sizeHint().width(),
-                    "compact card geometry");
+            require(card->accessibleDescription().contains(QStringLiteral("5h")) &&
+                        card->accessibleDescription().contains(QStringLiteral("w")),
+                    "two quota groups");
+            require(card->height() == 36 && card->testAttribute(Qt::WA_TranslucentBackground),
+                    "capsule geometry and transparency");
+            auto* styles = home->findChild<QComboBox*>(QStringLiteral("QuotaCardStyle"));
+            auto* startup = home->findChild<QCheckBox*>(QStringLiteral("ToolboxAutoStart"));
+            auto* save = home->findChild<QPushButton*>(QStringLiteral("SaveToolboxSettings"));
+            require(styles && startup && save, "new settings controls");
+            styles->setCurrentIndex(1);
+            startup->setChecked(true);
+            save->click();
+            require(card->height() == 112 && autoStartState && autoStartChanges == 1,
+                    "four rows and startup change");
+            require(QSettings(toolbox::settingsPath(), QSettings::IniFormat)
+                            .value(QStringLiteral("cardStyle"))
+                            .toString() == QStringLiteral("stacked"),
+                    "card style persistence");
+            styles->setCurrentIndex(0);
+            startup->setChecked(false);
+            save->click();
+            require(card->height() == 36 && !autoStartState && autoStartChanges == 2,
+                    "compact style and disable startup");
             home->close();
             require(!home->isVisible());
             controller.showHome();
@@ -217,6 +260,17 @@ int main(int argc, char** argv) {
                 if (name == QStringLiteral("ToolboxHome") || name == QStringLiteral("QuotaCard")) {
                     widget->grab().save(QStringLiteral("artifacts/toolbox-ui/") + name +
                                         QStringLiteral(".png"));
+                    if (name == QStringLiteral("QuotaCard")) {
+                        QSettings settings(toolbox::settingsPath(), QSettings::IniFormat);
+                        settings.setValue(QStringLiteral("cardStyle"), QStringLiteral("stacked"));
+                        settings.sync();
+                        controller.refreshUi();
+                        widget->grab().save(
+                            QStringLiteral("artifacts/toolbox-ui/QuotaCard-stacked.png"));
+                        settings.setValue(QStringLiteral("cardStyle"), QStringLiteral("compact"));
+                        settings.sync();
+                        controller.refreshUi();
+                    }
                     if (name == QStringLiteral("ToolboxHome")) {
                         auto* values = widget->findChild<QLabel*>(QStringLiteral("QuotaValues"));
                         qInfo() << "Quota label" << values->geometry() << values->minimumHeight()

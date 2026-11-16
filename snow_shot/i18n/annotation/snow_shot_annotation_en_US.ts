@@ -319,6 +319,10 @@
             <translation>Circle</translation>
         </message>
         <message>
+            <source>Circle region</source>
+            <translation>Circle region</translation>
+        </message>
+        <message>
             <source>Click-through</source>
             <translation>Click-through</translation>
         </message>

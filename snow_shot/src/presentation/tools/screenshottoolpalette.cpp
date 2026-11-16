@@ -9874,6 +9874,7 @@ void ScreenshotToolPalette::createMoveActionFamily() {
         {1, QT_TR_NOOP("Polyline region"), custom_outlined_icons::ScreenshotRegionPolyline()},
         {2, QT_TR_NOOP("Curve region"), custom_outlined_icons::ScreenshotRegionCurved()},
         {3, QT_TR_NOOP("Freehand region"), custom_outlined_icons::ScreenshotRegionFreehand()},
+        {4, QT_TR_NOOP("Circle region"), custom_outlined_icons::ShapeEllipse()},
     };
     regionTypeConfig.initialId = int(m_screenshotRegionType);
     regionTypeConfig.useButtonMetrics = true;

@@ -93,18 +93,10 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
                 if (reason == QSystemTrayIcon::Trigger)
                     showHome();
             });
-    m_card = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    m_card = new QuotaCard;
     m_card->setObjectName(QStringLiteral("QuotaCard"));
     m_card->setWindowTitle(tr("Codex quota card"));
-    m_card->setStyleSheet(style());
-    m_card->setAttribute(Qt::WA_ShowWithoutActivating);
     m_card->resize(160, 30);
-    auto* cardLayout = new QVBoxLayout(m_card);
-    cardLayout->setContentsMargins(10, 5, 10, 5);
-    m_cardLabel = label({}, cardLayout);
-    m_cardLabel->setObjectName(QStringLiteral("QuotaCardValues"));
-    m_cardLabel->setWordWrap(false);
-    m_cardLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_card->installEventFilter(this);
     QSettings settings(settingsPath(), QSettings::IniFormat);
     const auto area = QGuiApplication::primaryScreen()->availableGeometry();
@@ -182,7 +174,7 @@ ToolboxController::~ToolboxController() {
 void ToolboxController::buildHome() {
     m_home = new QWidget;
     m_home->setObjectName(QStringLiteral("ToolboxHome"));
-    m_home->setWindowTitle(tr("Snow Toolbox · 0.2.1"));
+    m_home->setWindowTitle(tr("Snow Toolbox · 0.3.0"));
     m_home->resize(850, 770);
     m_home->setMinimumSize(740, 740);
     m_home->setStyleSheet(style());
@@ -277,6 +269,7 @@ void ToolboxController::buildHome() {
         {QStringLiteral("color"), tr("Color picker")},
         {QStringLiteral("pin"), tr("Pinned images")},
         {QStringLiteral("ocr"), tr("Text recognition")},
+        {QStringLiteral("barcode"), tr("QR codes and barcodes")},
         {QStringLiteral("translation"), tr("Offline translation")},
         {QStringLiteral("memory"), tr("Memory information")},
         {QStringLiteral("cleanup"), tr("Memory cleanup")}};
@@ -298,6 +291,18 @@ void ToolboxController::buildHome() {
                          .toString()));
     key->setMaximumSequenceLength(1);
     form->addRow(tr("Screenshot shortcut"), key);
+    auto* cardStyle = new QComboBox;
+    cardStyle->setObjectName(QStringLiteral("QuotaCardStyle"));
+    cardStyle->addItem(tr("Compact dual capsules"), QStringLiteral("compact"));
+    cardStyle->addItem(tr("Four-row pebble"), QStringLiteral("stacked"));
+    cardStyle->setCurrentIndex(
+        settings.value(QStringLiteral("cardStyle")).toString() == QStringLiteral("stacked") ? 1
+                                                                                            : 0);
+    form->addRow(tr("Desktop card style"), cardStyle);
+    auto* autoStart = new QCheckBox(tr("Start with Windows"));
+    autoStart->setObjectName(QStringLiteral("ToolboxAutoStart"));
+    autoStart->setChecked(m_actions.autoStartEnabled());
+    settingsLayout->addWidget(autoStart);
     auto* codexRow = new QHBoxLayout;
     auto* executable = new QLineEdit(
         settings.value(QStringLiteral("codexExecutable"), QuotaService::discover()).toString());
@@ -312,19 +317,29 @@ void ToolboxController::buildHome() {
     label(tr("Closing this panel keeps the card and tray active. Disable a feature to stop its "
              "background activity. Translation may use internal OCR when the OCR button is hidden"),
           settingsLayout);
-    button(tr("Save and apply"), settingsLayout, [this, checks, key, executable] {
-        QSettings values(settingsPath(), QSettings::IniFormat);
-        for (auto* check : checks)
-            values.setValue(check->property("module").toString(), check->isChecked());
-        values.setValue(QStringLiteral("captureShortcut"),
-                        key->keySequence().toString(QKeySequence::PortableText));
-        values.setValue(QStringLiteral("codexExecutable"), executable->text().trimmed());
-        values.sync();
-        m_actions.cancelCapture();
-        applySettings();
-        m_status->setText(
-            tr("Settings saved. Check shortcut conflicts if capture does not respond"));
-    })->setObjectName(QStringLiteral("Primary"));
+    button(tr("Save and apply"), settingsLayout,
+           [this, checks, key, executable, cardStyle, autoStart] {
+               const auto error = m_actions.setAutoStart(autoStart->isChecked());
+               if (!error.isEmpty()) {
+                   autoStart->setChecked(m_actions.autoStartEnabled());
+                   m_status->setText(error);
+                   QMessageBox::warning(m_home, tr("Start with Windows"), error);
+                   return;
+               }
+               QSettings values(settingsPath(), QSettings::IniFormat);
+               values.setValue(QStringLiteral("cardStyle"), cardStyle->currentData());
+               for (auto* check : checks)
+                   values.setValue(check->property("module").toString(), check->isChecked());
+               values.setValue(QStringLiteral("captureShortcut"),
+                               key->keySequence().toString(QKeySequence::PortableText));
+               values.setValue(QStringLiteral("codexExecutable"), executable->text().trimmed());
+               values.sync();
+               m_actions.cancelCapture();
+               applySettings();
+               m_status->setText(
+                   tr("Settings saved. Check shortcut conflicts if capture does not respond"));
+           })
+        ->setObjectName(QStringLiteral("SaveToolboxSettings"));
     button(tr("Screenshot session shortcuts…"), settingsLayout,
            [this] { m_actions.openCaptureSettings(); });
     auto* contextBox = new QGroupBox(tr("Codex context"));
@@ -542,6 +557,8 @@ void ToolboxController::showCaptureSettings() {
     QSettings settings(settingsPath(), QSettings::IniFormat);
     const QList<QStringList> actions{
         {QStringLiteral("text_recognition"), tr("Text recognition"), QStringLiteral("Ctrl+O")},
+        {QStringLiteral("qr_code_recognition"), tr("QR codes and barcodes"),
+         QStringLiteral("Ctrl+Q")},
         {QStringLiteral("text_translation"), tr("Offline translation"), QStringLiteral("Ctrl+T")},
         {QStringLiteral("pin_to_screen"), tr("Pinned images"), QStringLiteral("Ctrl+P")},
         {QStringLiteral("copy_to_clipboard"), tr("Copy screenshot"), QStringLiteral("Ctrl+C")},
@@ -610,37 +627,7 @@ void ToolboxController::clean(bool deep) {
     m_memory.clean(deep);
     refreshUi();
 }
-QString ToolboxController::quotaHtml(bool compact) const {
-    if (compact) {
-        if (!enabled(QStringLiteral("quota")))
-            return tr("Disabled").toHtmlEscaped();
-        const auto windows = m_quota.windows();
-        QStringList items;
-        for (const auto& window : windows.mid(0, 2)) {
-            const auto date =
-                window.resets.isValid()
-                    ? window.resets.toString(window.compactTitle == QStringLiteral("5h") &&
-                                                     window.resets.date() == QDate::currentDate()
-                                                 ? QStringLiteral("HH:mm")
-                                                 : QStringLiteral("MM-dd HH:mm"))
-                    : QStringLiteral("--");
-            items.append(
-                QStringLiteral("%1 <b style='color:%2'>%3%</b> "
-                               "<img src=':/toolbox/reset.svg' width='12' height='12'>%4")
-                    .arg(window.compactTitle.toHtmlEscaped(),
-                         m_quota.stale() ? QStringLiteral("#94a3b8") : QStringLiteral("#3976e9"))
-                    .arg(window.remaining, 0, 'f', 0)
-                    .arg(date));
-        }
-        if (items.isEmpty())
-            items.append(QStringLiteral(
-                "5h -- <img src=':/toolbox/reset.svg' width='12' height='12'>--"
-                "&nbsp;&nbsp;w -- <img src=':/toolbox/reset.svg' width='12' height='12'>--"));
-        if (m_quota.stale())
-            items.append(QStringLiteral("<span style='color:#a76a22'>!</span>"));
-        return QStringLiteral("<span style='white-space:nowrap'>") +
-               items.join(QStringLiteral("&nbsp;&nbsp;")) + QStringLiteral("</span>");
-    }
+QString ToolboxController::quotaHtml() const {
     QString html = QStringLiteral("<b style='color:#64748b'>") + tr("Codex quota").toHtmlEscaped() +
                    QStringLiteral("</b>");
     html += QStringLiteral(" · ") + tr("Remaining").toHtmlEscaped();
@@ -697,12 +684,15 @@ QString ToolboxController::memoryHtml() const {
 void ToolboxController::refreshUi() {
     if (!m_card)
         return;
-    m_cardLabel->setText(quotaHtml(true));
-    m_card->setFixedSize((m_cardLabel->sizeHint() + QSize(22, 12)).expandedTo(QSize(160, 30)));
+    m_card->present(m_quota.windows(), m_quota.stale(), enabled(QStringLiteral("quota")),
+                    QSettings(settingsPath(), QSettings::IniFormat)
+                            .value(QStringLiteral("cardStyle"))
+                            .toString() == QStringLiteral("stacked"),
+                    tr("Disabled"));
     m_card->move(visiblePosition(m_card->pos(), m_card->size()));
-    m_quotaLabel->setText(quotaHtml(false));
+    m_quotaLabel->setText(quotaHtml());
     m_memoryLabel->setText(memoryHtml());
-    m_detailLabel->setText(quotaHtml(false) + QStringLiteral("<hr>") + memoryHtml());
+    m_detailLabel->setText(quotaHtml() + QStringLiteral("<hr>") + memoryHtml());
     m_detailStatus->setText(m_status->text());
     for (auto* window : {m_home, m_detail})
         for (auto* buttonWidget : window->findChildren<QPushButton*>()) {
@@ -802,7 +792,6 @@ bool ToolboxController::configureCapture() {
     values.insert(QStringLiteral("mcp/enabled"), false);
     values.insert(QStringLiteral("system/context_menu_mode"), QStringLiteral("disabled"));
     values.insert(QStringLiteral("floating_toolbar/enabled"), false);
-    values.insert(QStringLiteral("system/auto_start_at_boot"), false);
     values.insert(QStringLiteral("system/application_priority"), QStringLiteral("normal"));
     values.insert(QStringLiteral("text_recognition/resident_process"), false);
     values.insert(QStringLiteral("text_recognition/model_hot_start"), false);
@@ -816,6 +805,8 @@ bool ToolboxController::configureCapture() {
     values.insert(QStringLiteral("pin_to_screen/automatic_text_recognition"), false);
     values.insert(QStringLiteral("screenshot_translation/original_image_translation"), true);
     QJsonArray actions;
+    if (enabled(QStringLiteral("barcode")))
+        actions.append(QJsonArray{QStringLiteral("barcode-recognition")});
     if (enabled(QStringLiteral("ocr")))
         actions.append(QJsonArray{QStringLiteral("text-recognition")});
     if (enabled(QStringLiteral("translation")))
@@ -855,6 +846,7 @@ bool ToolboxController::configureCapture() {
     values.insert(drawingKey, toolbarLayout(drawingKey, drawing));
     for (const auto& item : QList<QPair<QString, QString>>{
              {QStringLiteral("text_recognition"), QStringLiteral("Ctrl+O")},
+             {QStringLiteral("qr_code_recognition"), QStringLiteral("Ctrl+Q")},
              {QStringLiteral("text_translation"), QStringLiteral("Ctrl+T")},
              {QStringLiteral("pin_to_screen"), QStringLiteral("Ctrl+P")},
              {QStringLiteral("copy_to_clipboard"), QStringLiteral("Ctrl+C")},
@@ -888,6 +880,7 @@ bool ToolboxController::configureCapture() {
                               : QJsonArray{});
     for (const auto& item : QList<QPair<QString, QString>>{
              {QStringLiteral("ocr"), QStringLiteral("text_recognition")},
+             {QStringLiteral("barcode"), QStringLiteral("qr_code_recognition")},
              {QStringLiteral("translation"), QStringLiteral("text_translation")},
              {QStringLiteral("pin"), QStringLiteral("pin_to_screen")}})
         if (!enabled(item.first))

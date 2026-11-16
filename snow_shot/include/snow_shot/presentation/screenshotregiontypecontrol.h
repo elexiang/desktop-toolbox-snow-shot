@@ -38,8 +38,9 @@ class ScreenshotRegionTypeControl final : public QWidget {
         row->setSpacing(2);
         namespace icons = snow_shot::presentation::icons::custom::outlined;
         const std::array refs{icons::ScreenshotRegionRectangle(), icons::ScreenshotRegionPolyline(),
-                              icons::ScreenshotRegionCurved(), icons::ScreenshotRegionFreehand()};
-        for (int i = 0; i < 4; ++i) {
+                              icons::ScreenshotRegionCurved(), icons::ScreenshotRegionFreehand(),
+                              icons::ShapeEllipse()};
+        for (int i = 0; i < 5; ++i) {
             auto* button = new adqt::widgets::AdButton(this);
             button->setObjectName(QStringLiteral("screenshotRegionType_") +
                                   screenshotRegionTypeId(ScreenshotRegionType(i)));
@@ -123,7 +124,7 @@ class ScreenshotRegionTypeControl final : public QWidget {
         if (m_type == type)
             return;
         m_type = type;
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 5; ++i) {
             auto* button = m_buttons[static_cast<std::size_t>(i)];
             const bool selected = i == int(type);
             button->setButtonStyle(selected ? adqt::widgets::AdButton::ButtonStyle::Solid
@@ -172,8 +173,9 @@ class ScreenshotRegionTypeControl final : public QWidget {
         const char* names[] = {QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Rectangle region"),
                                QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Polyline region"),
                                QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Curve region"),
-                               QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Freehand region")};
-        for (int i = 0; i < 4; ++i) {
+                               QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Freehand region"),
+                               QT_TRANSLATE_NOOP("ScreenshotRegionTypeControl", "Circle region")};
+        for (int i = 0; i < 5; ++i) {
             const auto text = QCoreApplication::translate("ScreenshotRegionTypeControl", names[i]);
             m_buttons[static_cast<std::size_t>(i)]->setToolTip(text);
             m_buttons[static_cast<std::size_t>(i)]->setAccessibleName(text);
@@ -191,7 +193,7 @@ class ScreenshotRegionTypeControl final : public QWidget {
         }
         adjustSize();
     }
-    std::array<adqt::widgets::AdButton*, 4> m_buttons{};
+    std::array<adqt::widgets::AdButton*, 5> m_buttons{};
     QLabel* m_hint = nullptr;
     bool m_floating = false;
     bool m_requestedVisible = false;

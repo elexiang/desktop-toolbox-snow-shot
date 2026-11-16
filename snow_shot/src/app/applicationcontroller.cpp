@@ -17,6 +17,7 @@
 #include "snow_shot/presentation/permissionguidecontroller.h"
 #endif
 #include "snow_shot/platform/windows/administratorlaunch.h"
+#include "snow_shot/platform/windows/autostartregistration.h"
 #if SNOW_SHOT_ENABLE_TEXT_TRANSLATION
 #include "snow_shot/translation/translationservice.h"
 #include "snow_shot/app/accountsessionservice.h"
@@ -1315,6 +1316,34 @@ class ApplicationController::Impl {
                     } else
                         for (auto* window : groupManager.liveWindows())
                             window->hide();
+                },
+                [] {
+                    return storage::ApplicationStorage::instance()
+                        .configuration()
+                        .value(QStringLiteral("system/auto_start_at_boot"))
+                        .toBool();
+                },
+                [](bool enabled) {
+                    auto& configuration = storage::ApplicationStorage::instance().configuration();
+                    if (configuration.value(QStringLiteral("system/auto_start_at_boot")).toBool() ==
+                            enabled &&
+                        (!enabled ||
+                         platform::windows::AutoStartRegistration::matchesExpectedCommand()))
+                        return QString();
+                    const auto previous =
+                        configuration.value(QStringLiteral("system/auto_start_at_boot"));
+                    const auto result = platform::windows::changeStartupMode(
+                        enabled ? platform::windows::StartupMode::Registry
+                                : platform::windows::StartupMode::Off,
+                        [&] {
+                            return configuration.setValue(
+                                       QStringLiteral("system/auto_start_at_boot"), enabled) &&
+                                   configuration.flushNow().success;
+                        });
+                    if (!result.success)
+                        configuration.setValue(QStringLiteral("system/auto_start_at_boot"),
+                                               previous);
+                    return result.success ? QString() : result.error;
                 }},
             &q);
         QObject::connect(

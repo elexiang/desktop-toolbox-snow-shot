@@ -4,7 +4,7 @@ param(
     [string]$QtPrefix = 'E:\DevCaches\snow-toolbox-build\Qt',
     [string]$UpstreamRuntime = 'E:\DevCaches\snow-toolbox-build\upstream-runtime',
     [string]$TranslationRuntime = 'E:\gitee_linya_projects\desktop-toolbox\runtime',
-    [string]$OutputDirectory = 'artifacts/SnowToolbox-0.2.1-win-x64'
+    [string]$OutputDirectory = 'artifacts/SnowToolbox-0.3.0-win-x64'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -12,13 +12,13 @@ Set-Location $repo
 $output = [IO.Path]::GetFullPath((Join-Path $repo $OutputDirectory))
 $binary = Join-Path $repo "$BuildDirectory/snow_shot/SnowToolbox.exe"
 $updater = Join-Path $repo "$BuildDirectory/snow_shot/snow-shot-updater.exe"
-foreach ($required in @($binary, $updater, "$QtPrefix/bin/windeployqt.exe", "$UpstreamRuntime/bin/assets/ocr/asset-manifest.json", "$TranslationRuntime/python/python.exe", "$TranslationRuntime/models/en_zh", "$TranslationRuntime/models/zh_en")) {
+foreach ($required in @($binary, $updater, "$QtPrefix/bin/windeployqt.exe", "$UpstreamRuntime/bin/assets/ocr/asset-manifest.json", "$UpstreamRuntime/bin/assets/qrcode/detect.caffemodel", "$TranslationRuntime/python/python.exe", "$TranslationRuntime/models/en_zh", "$TranslationRuntime/models/zh_en")) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing package input: $required" }
 }
 # Verify the upstream OCR files against the verified release archive's file inventory.
 $inventory = Get-Content -LiteralPath "$UpstreamRuntime/snow-shot-installation.json" -Raw | ConvertFrom-Json
 foreach ($item in $inventory.files) {
-    if ($item.path -notlike 'bin/assets/ocr/*') { continue }
+    if ($item.path -notlike 'bin/assets/ocr/*' -and $item.path -notlike 'bin/assets/qrcode/*') { continue }
     $file = Join-Path $UpstreamRuntime $item.path
     if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256) {
         throw "Upstream OCR hash mismatch: $($item.path)"
@@ -42,6 +42,7 @@ $crt = Get-ChildItem -LiteralPath "$env:VSINSTALLDIR/VC/Redist/MSVC" -Directory 
     Where-Object { $_.Name -match '^\d+\.' } | Sort-Object Name -Descending | Select-Object -First 1
 Copy-Item -Path "$($crt.FullName)/x64/Microsoft.VC145.CRT/*.dll" -Destination $output -Force
 Copy-Item -LiteralPath "$UpstreamRuntime/bin/assets/ocr" -Destination "$output/assets" -Recurse -Force
+Copy-Item -LiteralPath "$UpstreamRuntime/bin/assets/qrcode" -Destination "$output/assets" -Recurse -Force
 Copy-Item -LiteralPath "$UpstreamRuntime/bin/crashpad_handler.exe" -Destination $output -Force
 if (Test-Path -LiteralPath "$UpstreamRuntime/bin/audios") {
     Copy-Item -LiteralPath "$UpstreamRuntime/bin/audios" -Destination $output -Recurse -Force
