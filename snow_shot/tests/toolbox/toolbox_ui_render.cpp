@@ -23,6 +23,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <cstdlib>
+#include <cstdio>
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -97,7 +98,13 @@ int main(int argc, char** argv) {
         qputenv("SNOW_TOOLBOX_DATA", profile.path().toUtf8());
         qputenv("CODEX_HOME", profile.path().toUtf8());
         QSettings settings(toolbox::settingsPath(), QSettings::IniFormat);
-        settings.setValue(QStringLiteral("quota"), false);
+        settings.setValue(QStringLiteral("quota"), true);
+        settings.setValue(QStringLiteral("codexExecutable"),
+                          profile.filePath(QStringLiteral("missing.exe")));
+        settings.setValue(
+            QStringLiteral("quotaCache"),
+            QByteArray(
+                R"({"codex":{"primary":{"usedPercent":18,"windowDurationMins":300,"resetsAt":1794813360},"secondary":{"usedPercent":63,"windowDurationMins":10080,"resetsAt":1794989386}}})"));
         settings.setValue(QStringLiteral("memory"), false);
         settings.setValue(QStringLiteral("translation"), false);
     }
@@ -117,11 +124,24 @@ int main(int argc, char** argv) {
                 if (widget->objectName() == QStringLiteral("QuotaCard"))
                     card = widget;
             }
-            const auto require = [](bool value) {
-                if (!value)
+            const auto require = [](bool value, const char* message = "UI state assertion failed") {
+                if (!value) {
+                    std::fprintf(stderr, "%s\n", message);
                     std::exit(1);
+                }
             };
             require(home && card && home->isVisible() && card->isVisible());
+            require(!QImage(QStringLiteral(":/toolbox/reset.svg")).isNull(),
+                    "reset icon must load");
+            auto* cardValues = card->findChild<QLabel*>(QStringLiteral("QuotaCardValues"));
+            require(cardValues && cardValues->text().contains(QStringLiteral("5h")) &&
+                        cardValues->text().contains(QStringLiteral("w")) &&
+                        cardValues->text().contains(QStringLiteral("reset.svg")) &&
+                        !cardValues->text().contains(QStringLiteral("Codex")),
+                    "compact quota content");
+            require(!cardValues->wordWrap() && card->height() <= 36 &&
+                        cardValues->contentsRect().width() >= cardValues->sizeHint().width(),
+                    "compact card geometry");
             home->close();
             require(!home->isVisible());
             controller.showHome();
@@ -130,6 +150,7 @@ int main(int argc, char** argv) {
             require(!card->isVisible());
             controller.captureActivity(false);
             require(card->isVisible());
+            card->move(50, 50);
             const auto original = card->pos();
             const QPoint local(20, 20), global = card->mapToGlobal(local), delta(20, 15);
             QMouseEvent press(QEvent::MouseButtonPress, local, global, Qt::LeftButton,

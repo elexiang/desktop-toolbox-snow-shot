@@ -3,6 +3,7 @@
 #include "offlinetranslator.h"
 #include "memoryservice.h"
 #include "toolboxpaths.h"
+#include "snow_shot/presentation/screenshotcolorpickercontroller.h"
 #include <QApplication>
 #include <QEventLoop>
 #include <QTemporaryDir>
@@ -21,6 +22,29 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QTemporaryDir temporary;
     qputenv("SNOW_TOOLBOX_DATA", temporary.path().toUtf8());
+    ScreenshotColorPickerContext picker;
+    picker.active = true;
+    picker.intelligentSelecting = true;
+    picker.selectionPixels = QRect(10, 10, 400, 200);
+    require(screenshotColorPickerPreviewAllowed(picker),
+            "preview before confirming smart selection");
+    picker.intelligentSelecting = false;
+    picker.manualSelecting = true;
+    picker.dragging = true;
+    picker.dragMode = ScreenshotSelectionDragMode::Marquee;
+    require(screenshotColorPickerPreviewAllowed(picker), "preview during initial marquee drag");
+    picker.manualSelecting = false;
+    picker.dragging = false;
+    picker.movingSelection = true;
+    require(!screenshotColorPickerPreviewAllowed(picker),
+            "hide preview immediately after selection");
+    picker.manualSelecting = true;
+    picker.dragging = true;
+    picker.dragMode = ScreenshotSelectionDragMode::BottomRight;
+    require(!screenshotColorPickerPreviewAllowed(picker), "hide preview while resizing selection");
+    picker.manualSelecting = false;
+    picker.movingSelection = false;
+    require(!screenshotColorPickerPreviewAllowed(picker), "hide preview during annotation");
     const auto input =
         QJsonDocument::fromJson(
             R"({"codex":{"primary":{"usedPercent":5,"windowDurationMins":300,"resetsAt":1794641400},"secondary":{"usedPercent":29,"windowDurationMins":10080,"resetsAt":1794989386}},"other":{"primary":{"usedPercent":"unknown"}}})")
@@ -28,6 +52,9 @@ int main(int argc, char** argv) {
     auto windows = toolbox::QuotaService::parse(input);
     require(windows.size() == 2, "invalid percentage must not become fake quota");
     require(windows[0].remaining == 95 && windows[1].remaining == 71, "remaining percentage");
+    require(windows[0].compactTitle == QStringLiteral("5h") &&
+                windows[1].compactTitle == QStringLiteral("w"),
+            "compact quota labels");
     require(windows[0].resets.isValid(), "quota reset timestamp");
     require(toolbox::QuotaService::parse({}).isEmpty(), "empty quota stays empty");
     require(toolbox::OfflineTranslator::direction(QStringLiteral("Hello"), {}) ==

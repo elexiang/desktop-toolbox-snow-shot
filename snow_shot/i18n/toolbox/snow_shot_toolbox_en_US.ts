@@ -385,16 +385,12 @@
             <translation>Snow Toolbox</translation>
         </message>
         <message>
-            <source>Snow Toolbox · 0.2</source>
-            <translation>Snow Toolbox · 0.2</translation>
+            <source>Snow Toolbox · 0.2.1</source>
+            <translation>Snow Toolbox · 0.2.1</translation>
         </message>
         <message>
             <source>Snow Toolbox · local and lightweight</source>
             <translation>Snow Toolbox · local and lightweight</translation>
-        </message>
-        <message>
-            <source>Stale / unavailable</source>
-            <translation>Stale / unavailable</translation>
         </message>
         <message>
             <source>Text and translation panel</source>

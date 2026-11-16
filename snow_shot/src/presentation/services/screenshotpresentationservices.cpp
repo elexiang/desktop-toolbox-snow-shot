@@ -417,6 +417,12 @@ ScreenshotPresentationServices::Preparation ScreenshotPresentationServices::prep
         !m_state->initialized || hints.captureMode != m_state->hints.captureMode;
     const auto dragMode = m_context.interaction.dragMode();
     const bool dragModeChanged = dragMode != m_state->dragMode;
+    if (!screenshotColorPickerPreviewAllowed(colorPickerContext())) {
+        // Retire the last native popup synchronously on selection confirmation, even if
+        // the cursor has not moved and the last drag sample was already consumed.
+        discardColorPickerPresentation();
+        m_context.overlayCoordinator.hideColorPicker();
+    }
     if (!newSession && toolbar == m_state->toolbar && visual == m_state->visual &&
         hints == m_state->hints && !dragModeChanged && !lifecycleChanged &&
         !m_state->preferencesDirty && !m_state->presentationDirty) {

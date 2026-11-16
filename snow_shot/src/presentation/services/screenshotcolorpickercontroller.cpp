@@ -108,6 +108,7 @@ void ScreenshotColorPickerController::updateAtPhysicalPoint(
         m_overlayCoordinator.sampleColorPicker(display->image, display->physicalRect, physicalPoint,
                                                QImage{}, {});
         m_overlay = overlay;
+        hide();
         return;
     }
 
@@ -273,6 +274,8 @@ ScreenshotColorPickerController::canvasPositionForPhysicalPoint(const QPointF& p
 
 bool ScreenshotColorPickerController::visibleForPoint(
     const QPointF& canvasPoint, const ScreenshotColorPickerContext& context) const {
+    if (!screenshotColorPickerPreviewAllowed(context))
+        return false;
     const bool hasSelection =
         context.selectionPixels.width() >= 1 && context.selectionPixels.height() >= 1;
     const QRect toleratedSelection = context.selectionPixels.adjusted(

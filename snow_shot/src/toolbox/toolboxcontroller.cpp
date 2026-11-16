@@ -98,10 +98,12 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     m_card->setWindowTitle(tr("Codex quota card"));
     m_card->setStyleSheet(style());
     m_card->setAttribute(Qt::WA_ShowWithoutActivating);
-    m_card->setFixedSize(248, 150);
+    m_card->resize(160, 30);
     auto* cardLayout = new QVBoxLayout(m_card);
-    cardLayout->setContentsMargins(16, 13, 16, 11);
+    cardLayout->setContentsMargins(10, 5, 10, 5);
     m_cardLabel = label({}, cardLayout);
+    m_cardLabel->setObjectName(QStringLiteral("QuotaCardValues"));
+    m_cardLabel->setWordWrap(false);
     m_cardLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_card->installEventFilter(this);
     QSettings settings(settingsPath(), QSettings::IniFormat);
@@ -180,7 +182,7 @@ ToolboxController::~ToolboxController() {
 void ToolboxController::buildHome() {
     m_home = new QWidget;
     m_home->setObjectName(QStringLiteral("ToolboxHome"));
-    m_home->setWindowTitle(tr("Snow Toolbox · 0.2"));
+    m_home->setWindowTitle(tr("Snow Toolbox · 0.2.1"));
     m_home->resize(850, 770);
     m_home->setMinimumSize(740, 740);
     m_home->setStyleSheet(style());
@@ -609,54 +611,72 @@ void ToolboxController::clean(bool deep) {
     refreshUi();
 }
 QString ToolboxController::quotaHtml(bool compact) const {
+    if (compact) {
+        if (!enabled(QStringLiteral("quota")))
+            return tr("Disabled").toHtmlEscaped();
+        const auto windows = m_quota.windows();
+        QStringList items;
+        for (const auto& window : windows.mid(0, 2)) {
+            const auto date =
+                window.resets.isValid()
+                    ? window.resets.toString(window.compactTitle == QStringLiteral("5h") &&
+                                                     window.resets.date() == QDate::currentDate()
+                                                 ? QStringLiteral("HH:mm")
+                                                 : QStringLiteral("MM-dd HH:mm"))
+                    : QStringLiteral("--");
+            items.append(
+                QStringLiteral("%1 <b style='color:%2'>%3%</b> "
+                               "<img src=':/toolbox/reset.svg' width='12' height='12'>%4")
+                    .arg(window.compactTitle.toHtmlEscaped(),
+                         m_quota.stale() ? QStringLiteral("#94a3b8") : QStringLiteral("#3976e9"))
+                    .arg(window.remaining, 0, 'f', 0)
+                    .arg(date));
+        }
+        if (items.isEmpty())
+            items.append(QStringLiteral(
+                "5h -- <img src=':/toolbox/reset.svg' width='12' height='12'>--"
+                "&nbsp;&nbsp;w -- <img src=':/toolbox/reset.svg' width='12' height='12'>--"));
+        if (m_quota.stale())
+            items.append(QStringLiteral("<span style='color:#a76a22'>!</span>"));
+        return QStringLiteral("<span style='white-space:nowrap'>") +
+               items.join(QStringLiteral("&nbsp;&nbsp;")) + QStringLiteral("</span>");
+    }
     QString html = QStringLiteral("<b style='color:#64748b'>") + tr("Codex quota").toHtmlEscaped() +
                    QStringLiteral("</b>");
-    if (!compact)
-        html += QStringLiteral(" · ") + tr("Remaining").toHtmlEscaped();
+    html += QStringLiteral(" · ") + tr("Remaining").toHtmlEscaped();
     if (!enabled(QStringLiteral("quota")))
         return html + QStringLiteral("<p>") + tr("Disabled").toHtmlEscaped();
     const auto windows = m_quota.windows();
     if (windows.isEmpty())
         html += QStringLiteral("<p style='font-size:18pt'>-- &nbsp; / &nbsp; --</p>");
-    if (!compact && !windows.isEmpty())
+    if (!windows.isEmpty())
         html += QStringLiteral("<table width='100%' cellspacing='0' cellpadding='2'><tr>");
     int count = 0;
     for (const auto& window : windows) {
-        if (compact && count++ == 2)
-            break;
-        if (!compact) {
-            if (count > 0 && count % 2 == 0)
-                html += QStringLiteral("</tr><tr>");
-            html += QStringLiteral("<td width='50%'>");
-            ++count;
-        }
-        const auto date =
-            window.resets.isValid()
-                ? window.resets.toString(compact ? QStringLiteral("MM-dd HH:mm")
-                                                 : QStringLiteral("yyyy-MM-dd HH:mm:ss"))
-                : QStringLiteral("--");
+        if (count > 0 && count % 2 == 0)
+            html += QStringLiteral("</tr><tr>");
+        html += QStringLiteral("<td width='50%'>");
+        ++count;
+        const auto date = window.resets.isValid()
+                              ? window.resets.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))
+                              : QStringLiteral("--");
         html += QStringLiteral("<p style='margin:7px 0'><b>%1</b>&nbsp; <span "
                                "style='font-size:%2pt;color:%3;font-weight:600'>%4%</"
                                "span><br><span style='color:#7b8799'>%5 %6</span></p>")
                     .arg(window.title.toHtmlEscaped())
-                    .arg(compact ? 15 : 20)
+                    .arg(20)
                     .arg(m_quota.stale() ? QStringLiteral("#94a3b8") : QStringLiteral("#3976e9"))
                     .arg(window.remaining, 0, 'f', 0)
                     .arg(tr("Resets").toHtmlEscaped(), date);
-        if (!compact)
-            html += QStringLiteral("</td>");
+        html += QStringLiteral("</td>");
     }
-    if (!compact && !windows.isEmpty())
+    if (!windows.isEmpty())
         html += QStringLiteral("</tr></table>");
-    if (!compact)
-        html += QStringLiteral("<p>%1<br>%2 %3</p>")
-                    .arg(m_quota.status().toHtmlEscaped(), tr("Updated:").toHtmlEscaped(),
-                         m_quota.updatedAt().isValid()
-                             ? m_quota.updatedAt().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))
-                             : QStringLiteral("--"));
-    else if (m_quota.stale())
-        html += QStringLiteral("<span style='color:#a76a22'>") +
-                tr("Stale / unavailable").toHtmlEscaped() + QStringLiteral("</span>");
+    html += QStringLiteral("<p>%1<br>%2 %3</p>")
+                .arg(m_quota.status().toHtmlEscaped(), tr("Updated:").toHtmlEscaped(),
+                     m_quota.updatedAt().isValid()
+                         ? m_quota.updatedAt().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))
+                         : QStringLiteral("--"));
     return html;
 }
 QString ToolboxController::memoryHtml() const {
@@ -678,6 +698,8 @@ void ToolboxController::refreshUi() {
     if (!m_card)
         return;
     m_cardLabel->setText(quotaHtml(true));
+    m_card->setFixedSize((m_cardLabel->sizeHint() + QSize(22, 12)).expandedTo(QSize(160, 30)));
+    m_card->move(visiblePosition(m_card->pos(), m_card->size()));
     m_quotaLabel->setText(quotaHtml(false));
     m_memoryLabel->setText(memoryHtml());
     m_detailLabel->setText(quotaHtml(false) + QStringLiteral("<hr>") + memoryHtml());

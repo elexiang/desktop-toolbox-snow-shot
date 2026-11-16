@@ -11,6 +11,7 @@ struct QuotaWindow {
     QString title;
     double remaining = -1;
     QDateTime resets;
+    QString compactTitle;
 };
 class QuotaService final : public QObject {
     Q_OBJECT

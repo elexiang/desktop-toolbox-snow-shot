@@ -4,7 +4,7 @@ param(
     [string]$QtPrefix = 'E:\DevCaches\snow-toolbox-build\Qt',
     [string]$UpstreamRuntime = 'E:\DevCaches\snow-toolbox-build\upstream-runtime',
     [string]$TranslationRuntime = 'E:\gitee_linya_projects\desktop-toolbox\runtime',
-    [string]$OutputDirectory = 'artifacts/SnowToolbox-0.2.0-win-x64'
+    [string]$OutputDirectory = 'artifacts/SnowToolbox-0.2.1-win-x64'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent

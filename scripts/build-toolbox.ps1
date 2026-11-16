@@ -32,11 +32,11 @@ if (-not (Test-Path -LiteralPath $ninja)) { $ninja = (Get-Command ninja -ErrorAc
     "-DCMAKE_MAKE_PROGRAM=$ninja" -DCMAKE_BUILD_TYPE=Release `
     "-DCMAKE_PREFIX_PATH=$QtPrefix" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
     "-DPython3_EXECUTABLE=$python" `
-    '-DCMAKE_TOOLCHAIN_FILE=.tools/vcpkg/scripts/buildsystems/vcpkg.cmake' `
-    '-DVCPKG_INSTALLED_DIR=.tools/vcpkg/installed/dynamic' `
+    "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+    "-DVCPKG_INSTALLED_DIR=$repo/.tools/vcpkg/installed/dynamic" `
     -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_HOST_TRIPLET=x64-windows -DVCPKG_MANIFEST_FEATURES=snow-shot `
-    '-DVCPKG_OVERLAY_PORTS=cmake/vcpkg-overlay-ports' `
-    '-DVCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-overlay-triplets' `
+    "-DVCPKG_OVERLAY_PORTS=$repo/cmake/vcpkg-overlay-ports" `
+    "-DVCPKG_OVERLAY_TRIPLETS=$repo/cmake/vcpkg-overlay-triplets" `
     -DSNOW_APPS_BUILD_TESTS=OFF -DSNOW_APPS_BUILD_BENCHMARKS=OFF `
     "-DSNOW_SHOT_BUILD_RUNTIME_TESTS=$($RuntimeTests.IsPresent)" `
     -DSNOW_APPS_BUILD_IMAGE_VIEWER=OFF -DSNOW_APPS_BUILD_SNOW_SHOT_MINI=OFF `

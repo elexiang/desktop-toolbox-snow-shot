@@ -385,16 +385,12 @@
             <translation>Snow 工具箱</translation>
         </message>
         <message>
-            <source>Snow Toolbox · 0.2</source>
-            <translation>Snow 工具箱 · 0.2</translation>
+            <source>Snow Toolbox · 0.2.1</source>
+            <translation>Snow 工具箱 · 0.2.1</translation>
         </message>
         <message>
             <source>Snow Toolbox · local and lightweight</source>
             <translation>Snow 工具箱 · 本地輕量</translation>
-        </message>
-        <message>
-            <source>Stale / unavailable</source>
-            <translation>已過期 / 暫不可用</translation>
         </message>
         <message>
             <source>Text and translation panel</source>

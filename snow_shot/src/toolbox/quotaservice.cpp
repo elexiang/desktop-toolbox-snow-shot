@@ -198,13 +198,19 @@ QList<QuotaWindow> QuotaService::parse(const QJsonObject& buckets) {
                                                : tr("Window %1").arg(key);
             if (id != QStringLiteral("codex"))
                 title = id + QStringLiteral(" · ") + title;
+            const QString compactTitle = id == QStringLiteral("codex")
+                                             ? minutes == 300     ? QStringLiteral("5h")
+                                               : minutes == 10080 ? QStringLiteral("w")
+                                               : minutes > 0 ? QStringLiteral("%1m").arg(minutes)
+                                                             : title
+                                             : title;
             const auto reset = window.value(QStringLiteral("resetsAt"));
             result.append(
                 {title,
                  std::clamp(100.0 - window.value(QStringLiteral("usedPercent")).toDouble(), 0.0,
                             100.0),
-                 reset.isDouble() ? QDateTime::fromSecsSinceEpoch(reset.toInteger())
-                                  : QDateTime{}});
+                 reset.isDouble() ? QDateTime::fromSecsSinceEpoch(reset.toInteger()) : QDateTime{},
+                 compactTitle});
         }
     return result;
 }

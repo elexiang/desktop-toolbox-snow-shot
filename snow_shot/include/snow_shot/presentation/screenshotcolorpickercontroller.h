@@ -34,6 +34,15 @@ struct ScreenshotColorPickerContext {
     ScreenshotSelectionDragMode dragMode = ScreenshotSelectionDragMode::None;
 };
 
+// Keep color sampling available after selection, but show the native popup only while selecting.
+[[nodiscard]] inline bool
+screenshotColorPickerPreviewAllowed(const ScreenshotColorPickerContext& context) {
+    return context.active &&
+           (context.intelligentSelecting ||
+            (context.manualSelecting &&
+             (!context.dragging || context.dragMode == ScreenshotSelectionDragMode::Marquee)));
+}
+
 class ScreenshotColorPickerController final {
   public:
     ScreenshotColorPickerController(ScreenshotOverlayCoordinator& overlayCoordinator,
