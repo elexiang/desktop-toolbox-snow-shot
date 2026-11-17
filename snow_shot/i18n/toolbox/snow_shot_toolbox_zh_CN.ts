@@ -113,12 +113,20 @@
     <context>
         <name>toolbox::ToolboxController</name>
         <message>
+            <source>%1 / %2 GiB</source>
+            <translation>%1 / %2 GiB</translation>
+        </message>
+        <message>
+            <source>%1 days</source>
+            <translation>%1 天</translation>
+        </message>
+        <message>
             <source>1M context enabled</source>
             <translation>已启用 1M 上下文</translation>
         </message>
         <message>
-            <source>&lt;b&gt;Memory&lt;/b&gt; · %1% used&lt;br&gt;Available %2 / %3 GiB&lt;br&gt;Toolbox and %4 processes: %5 MiB private working set · %6 MiB private commit</source>
-            <translation>&lt;b&gt;内存&lt;/b&gt; · 已用 %1%&lt;br&gt;可用 %2 / %3 GiB&lt;br&gt;工具箱整树 %4 个进程：独占物理 %5 MiB · 私有提交 %6 MiB</translation>
+            <source>About 1M context</source>
+            <translation>关于 1M 上下文</translation>
         </message>
         <message>
             <source>Annotation tools</source>
@@ -127,6 +135,10 @@
         <message>
             <source>Auto Chinese ↔ English</source>
             <translation>自动中英互译</translation>
+        </message>
+        <message>
+            <source>Available: %1 GiB</source>
+            <translation>可用：%1 GiB</translation>
         </message>
         <message>
             <source>Backup: %1</source>
@@ -145,10 +157,6 @@
             <translation>区域截图</translation>
         </message>
         <message>
-            <source>Capture, read and keep your quota in view</source>
-            <translation>截图、阅读，额度随时可见</translation>
-        </message>
-        <message>
             <source>Chinese → English</source>
             <translation>中文 → 英文</translation>
         </message>
@@ -165,12 +173,16 @@
             <translation>关闭面板后保留卡片和托盘。停用功能会停止其后台活动；隐藏识字按钮后，翻译仍可按需调用内部 OCR</translation>
         </message>
         <message>
+            <source>Codex</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
             <source>Codex CLI</source>
             <translation>Codex CLI</translation>
         </message>
         <message>
-            <source>Codex context</source>
-            <translation>Codex 上下文</translation>
+            <source>Codex context: %1</source>
+            <translation>Codex 上下文：%1</translation>
         </message>
         <message>
             <source>Codex quota</source>
@@ -181,12 +193,16 @@
             <translation>Codex 额度卡片</translation>
         </message>
         <message>
+            <source>Codex quota: %1</source>
+            <translation>Codex 额度：%1</translation>
+        </message>
+        <message>
             <source>Color picker</source>
             <translation>屏幕取色</translation>
         </message>
         <message>
-            <source>Compact dual capsules</source>
-            <translation>横向双色胶囊</translation>
+            <source>Compact capsule</source>
+            <translation>横向单胶囊</translation>
         </message>
         <message>
             <source>Complete · the model exits after 60 seconds idle</source>
@@ -209,6 +225,10 @@
             <translation>检测到自定义上下文覆盖，可启用 1M 或恢复模型默认</translation>
         </message>
         <message>
+            <source>Deep cleanup requested</source>
+            <translation>请求深度清理</translation>
+        </message>
+        <message>
             <source>Deep cleanup…</source>
             <translation>深度清理…</translation>
         </message>
@@ -223,6 +243,10 @@
         <message>
             <source>Disabled</source>
             <translation>已关闭</translation>
+        </message>
+        <message>
+            <source>Do not auto-clean</source>
+            <translation>不自动清理</translation>
         </message>
         <message>
             <source>Enable 1M context</source>
@@ -241,16 +265,48 @@
             <translation>英文 → 中文</translation>
         </message>
         <message>
+            <source>Exit</source>
+            <translation>退出</translation>
+        </message>
+        <message>
             <source>Four-row pebble</source>
             <translation>四行鹅卵石</translation>
         </message>
         <message>
-            <source>Local text recognition and translation</source>
-            <translation>本地识字与翻译</translation>
+            <source>Keep logs for</source>
+            <translation>日志保留</translation>
+        </message>
+        <message>
+            <source>Local translation complete</source>
+            <translation>本地翻译完成</translation>
+        </message>
+        <message>
+            <source>Local translation started</source>
+            <translation>开始本地翻译</translation>
+        </message>
+        <message>
+            <source>Logs</source>
+            <translation>日志</translation>
+        </message>
+        <message>
+            <source>Longniang Toolbox</source>
+            <translation>龙娘工具箱</translation>
+        </message>
+        <message>
+            <source>Longniang Toolbox · text and translation</source>
+            <translation>龙娘工具箱 · 文字与翻译</translation>
         </message>
         <message>
             <source>Manual cleanup only. Deep cleanup requests Windows authorization and can affect system caches. It does not change the page file</source>
             <translation>仅手动清理。深度清理会申请 Windows 授权并影响系统缓存，不修改分页文件</translation>
+        </message>
+        <message>
+            <source>Manual quota refresh requested</source>
+            <translation>手动刷新额度数据</translation>
+        </message>
+        <message>
+            <source>Manually refresh data</source>
+            <translation>手动刷新数据</translation>
         </message>
         <message>
             <source>Memory cleanup</source>
@@ -285,8 +341,8 @@
             <translation>原文 → 离线译文</translation>
         </message>
         <message>
-            <source>Overview</source>
-            <translation>概览</translation>
+            <source>Physical memory</source>
+            <translation>物理内存</translation>
         </message>
         <message>
             <source>Pin clipboard image</source>
@@ -317,8 +373,8 @@
             <translation>正在读取或更新 Codex 上下文设置…</translation>
         </message>
         <message>
-            <source>Ready · OCR and translation run locally</source>
-            <translation>就绪 · 识字与翻译均在本机完成</translation>
+            <source>Recent activity</source>
+            <translation>最近活动</translation>
         </message>
         <message>
             <source>Refresh context setting</source>
@@ -329,8 +385,16 @@
             <translation>刷新额度</translation>
         </message>
         <message>
+            <source>Region capture requested</source>
+            <translation>开始区域截图</translation>
+        </message>
+        <message>
             <source>Regular cleanup</source>
             <translation>常规清理</translation>
+        </message>
+        <message>
+            <source>Regular cleanup requested</source>
+            <translation>请求常规清理</translation>
         </message>
         <message>
             <source>Remaining</source>
@@ -373,12 +437,12 @@
             <translation>截图快捷键</translation>
         </message>
         <message>
-            <source>Select Codex CLI</source>
-            <translation>选择 Codex CLI</translation>
+            <source>Screenshot shortcuts saved</source>
+            <translation>已保存截图快捷键</translation>
         </message>
         <message>
-            <source>Select once, then annotate, recognize text, translate, copy, save or pin. C: RGB · X: HEX · Esc: cancel</source>
-            <translation>一次框选，再标注、识字、翻译、复制、保存或贴图。C：RGB · X：HEX · Esc：取消</translation>
+            <source>Select Codex CLI</source>
+            <translation>选择 Codex CLI</translation>
         </message>
         <message>
             <source>Selected profile: %1</source>
@@ -389,32 +453,24 @@
             <translation>设置</translation>
         </message>
         <message>
-            <source>Settings saved. Check shortcut conflicts if capture does not respond</source>
-            <translation>设置已保存。若截图无响应，请检查快捷键冲突</translation>
-        </message>
-        <message>
-            <source>Snow Shot 1.5.7 base · offline models sleep after use</source>
-            <translation>基于 Snow Shot 1.5.7 · 离线模型用后休眠</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox</source>
-            <translation>Snow 工具箱</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox · 0.3.0</source>
-            <translation>Snow 工具箱 · 0.3.0</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox · local and lightweight</source>
-            <translation>Snow 工具箱 · 本地轻量</translation>
+            <source>Settings saved and applied</source>
+            <translation>设置已保存并应用</translation>
         </message>
         <message>
             <source>Start with Windows</source>
             <translation>开机启动</translation>
         </message>
         <message>
+            <source>System cache</source>
+            <translation>系统缓存</translation>
+        </message>
+        <message>
             <source>Text and translation panel</source>
             <translation>文字与翻译面板</translation>
+        </message>
+        <message>
+            <source>Text and translation panel opened</source>
+            <translation>打开文字与翻译面板</translation>
         </message>
         <message>
             <source>Text recognition</source>
@@ -429,6 +485,18 @@
             <translation>截图快捷键注册失败，请在设置中改用其他组合键</translation>
         </message>
         <message>
+            <source>Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit</source>
+            <translation>工具箱整树 %1 个进程：独占物理 %2 MiB · 私有提交 %3 MiB</translation>
+        </message>
+        <message>
+            <source>Toolbox started</source>
+            <translation>工具箱已启动</translation>
+        </message>
+        <message>
+            <source>Tools</source>
+            <translation>工具</translation>
+        </message>
+        <message>
             <source>Translate</source>
             <translation>翻译</translation>
         </message>
@@ -441,16 +509,32 @@
             <translation>在此输入或粘贴原文</translation>
         </message>
         <message>
+            <source>Unable to apply the screenshot shortcut. Check the shortcut and try again</source>
+            <translation>无法应用截图快捷键，请检查按键组合后重试</translation>
+        </message>
+        <message>
+            <source>Unable to clean old logs. Check write access to the data folder</source>
+            <translation>清理旧日志失败，请检查数据目录写入权限</translation>
+        </message>
+        <message>
             <source>Unable to read or update the Codex configuration. Check access and TOML syntax; unsupported layouts are left unchanged</source>
             <translation>无法读取或更新 Codex 配置，请检查权限与 TOML 语法；不支持的结构会保持原样</translation>
         </message>
         <message>
-            <source>Updated:</source>
-            <translation>更新于：</translation>
+            <source>Updated: %1</source>
+            <translation>更新于：%1</translation>
+        </message>
+        <message>
+            <source>Used</source>
+            <translation>已用</translation>
         </message>
         <message>
             <source>Using the model default context</source>
             <translation>使用模型默认上下文</translation>
+        </message>
+        <message>
+            <source>Virtual memory (commit)</source>
+            <translation>虚拟内存（系统提交）</translation>
         </message>
     </context>
 </TS>

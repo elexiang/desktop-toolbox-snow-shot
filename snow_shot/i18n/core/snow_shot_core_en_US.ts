@@ -961,6 +961,10 @@ so every moment on screen can be expressed clearly and shared easily</translatio
             <translation>Snow Shot %1 is available. Open About for update options</translation>
         </message>
         <message>
+            <source>The screenshot shortcut could not be registered. Choose another shortcut in Settings</source>
+            <translation>The screenshot shortcut could not be registered. Choose another shortcut in Settings</translation>
+        </message>
+        <message>
             <source>The selected file path is invalid</source>
             <translation>The selected file path is invalid</translation>
         </message>

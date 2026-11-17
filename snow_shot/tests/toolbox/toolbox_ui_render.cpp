@@ -23,8 +23,13 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QComboBox>
+#include <QButtonGroup>
+#include <QToolButton>
+#include <QKeySequenceEdit>
+#include <QGroupBox>
 #include <cstdlib>
 #include <cstdio>
+#include <source_location>
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -42,8 +47,8 @@ int main(int argc, char** argv) {
             card.present(windows, false, true, stacked, {});
             card.show();
             app.processEvents();
-            card.grab().save(stacked ? QStringLiteral("artifacts/toolbox-ui/v030-stacked.png")
-                                     : QStringLiteral("artifacts/toolbox-ui/v030-compact.png"));
+            card.grab().save(stacked ? QStringLiteral("artifacts/toolbox-ui/v031-stacked.png")
+                                     : QStringLiteral("artifacts/toolbox-ui/v031-compact.png"));
         }
         return 0;
     }
@@ -114,7 +119,7 @@ int main(int argc, char** argv) {
     QTemporaryDir profile;
     const bool contextVerify = app.arguments().contains(QStringLiteral("--verify-context"));
     const bool verify = contextVerify || app.arguments().contains(QStringLiteral("--verify"));
-    if (verify) {
+    if (verify || app.arguments().contains(QStringLiteral("--render"))) {
         qputenv("SNOW_TOOLBOX_DATA", profile.path().toUtf8());
         qputenv("CODEX_HOME", profile.path().toUtf8());
         QSettings settings(toolbox::settingsPath(), QSettings::IniFormat);
@@ -125,8 +130,14 @@ int main(int argc, char** argv) {
             QStringLiteral("quotaCache"),
             QByteArray(
                 R"({"codex":{"primary":{"usedPercent":18,"windowDurationMins":300,"resetsAt":1794813360},"secondary":{"usedPercent":63,"windowDurationMins":10080,"resetsAt":1794989386}}})"));
-        settings.setValue(QStringLiteral("memory"), false);
-        settings.setValue(QStringLiteral("translation"), false);
+        settings.setValue(QStringLiteral("memory"), !verify);
+        settings.setValue(QStringLiteral("translation"), !verify);
+        if (contextVerify) {
+            QFile config(profile.filePath(QStringLiteral("config.toml")));
+            if (!config.open(QIODevice::WriteOnly))
+                return 1;
+            config.write("# preserved\nmodel = \"test-model\"\n");
+        }
     }
     QFontDatabase::addApplicationFont(QStringLiteral("C:/Windows/Fonts/msyh.ttc"));
     app.setQuitOnLastWindowClosed(false);
@@ -142,6 +153,18 @@ int main(int argc, char** argv) {
         ++autoStartChanges;
         return QString();
     };
+    bool shortcutEditing = false;
+    QStringList appliedShortcuts;
+    actions.setShortcutEditing = [&](bool editing) { shortcutEditing = editing; };
+    actions.applyCaptureShortcut = [&] {
+        if (shortcutEditing)
+            return QStringLiteral("Cannot apply while editing");
+        appliedShortcuts.append(
+            QSettings(toolbox::settingsPath(), QSettings::IniFormat)
+                .value(QStringLiteral("captureShortcut"), QStringLiteral("Ctrl+Alt+1"))
+                .toString());
+        return QString();
+    };
     toolbox::ToolboxController controller(actions, &app);
     controller.showHome();
     if (verify)
@@ -153,13 +176,78 @@ int main(int argc, char** argv) {
                 if (widget->objectName() == QStringLiteral("QuotaCard"))
                     card = widget;
             }
-            const auto require = [](bool value, const char* message = "UI state assertion failed") {
+            const auto require = [](bool value, const char* message = "UI state assertion failed",
+                                    std::source_location location =
+                                        std::source_location::current()) {
                 if (!value) {
-                    std::fprintf(stderr, "%s\n", message);
+                    std::fprintf(stderr, "%s (line %u)\n", message, location.line());
                     std::exit(1);
                 }
             };
             require(home && card && home->isVisible() && card->isVisible());
+            auto* tabs = home->findChild<QTabWidget*>();
+            auto* contextBox = home->findChild<QGroupBox*>(QStringLiteral("CodexContextBox"));
+            auto* overview = home->findChild<QWidget*>(QStringLiteral("OverviewPage"));
+            auto* settingsPage = home->findChild<QWidget*>(QStringLiteral("SettingsPage"));
+            auto* activity = home->findChild<QPlainTextEdit*>(QStringLiteral("ActivityLog"));
+            require(tabs && tabs->tabText(0) == QString::fromUtf8("工具"),
+                    "overview renamed Tools");
+            require(!home->findChild<QLabel*>(QStringLiteral("ToolboxStatus"))->isVisible(),
+                    "tools page has no bottom activity status");
+            require(tabs && tabs->count() == 3 &&
+                        tabs->widget(1)->objectName() == QStringLiteral("LogPage"),
+                    "logs tab between overview and settings");
+            require(contextBox && overview->isAncestorOf(contextBox) &&
+                        !settingsPage->isAncestorOf(contextBox),
+                    "context controls belong to overview");
+            require(activity && activity->isReadOnly() && !activity->toPlainText().isEmpty(),
+                    "activity log contains startup events");
+            for (auto* b : home->findChildren<QPushButton*>())
+                require(b->text() != QString::fromUtf8("退出工具箱") &&
+                            b->text() != QStringLiteral("Quit toolbox"),
+                        "home has no quit button");
+            auto* refresh = home->findChild<QPushButton*>(QStringLiteral("ManualQuotaRefresh"));
+            auto* quotaStatus = home->findChild<QLabel*>(QStringLiteral("QuotaStatus"));
+            auto* updated = home->findChild<QLabel*>(QStringLiteral("QuotaUpdated"));
+            app.processEvents();
+            require(refresh && quotaStatus && updated &&
+                        refresh->parentWidget() == quotaStatus->parentWidget() &&
+                        std::abs(refresh->geometry().center().y() -
+                                 updated->geometry().center().y()) <= 1,
+                    "quota status, timestamp and manual refresh share a row");
+            require(refresh->height() <= 40, "compact action buttons");
+            auto* toggle = home->findChild<QCheckBox*>(QStringLiteral("CodexContextToggle"));
+            auto* help = home->findChild<QToolButton*>(QStringLiteral("CodexContextHelp"));
+            auto* defaults = home->findChild<QPushButton*>(QStringLiteral("CodexContextDefault"));
+            require(toggle && help && defaults && contextBox->isAncestorOf(toggle) &&
+                        contextBox->isAncestorOf(refresh) &&
+                        std::abs(toggle->geometry().center().y() -
+                                 defaults->geometry().center().y()) <= 1,
+                    "quota and single row context controls in Codex panel");
+            require(!help->toolTip().isEmpty(), "context explanation is in question mark");
+            require(!home->findChild<QPushButton*>(QStringLiteral("Primary")),
+                    "capture action has no arbitrary primary emphasis");
+            tabs->setCurrentIndex(2);
+            app.processEvents();
+            auto* shortcut = home->findChild<QKeySequenceEdit*>(QStringLiteral("CaptureShortcut"));
+            auto* session =
+                home->findChild<QPushButton*>(QStringLiteral("ScreenshotSessionShortcuts"));
+            require(shortcut && session && shortcut->x() < session->x() &&
+                        std::abs(shortcut->geometry().center().y() -
+                                 session->geometry().center().y()) <= 1,
+                    "session shortcuts next to screenshot shortcut");
+            require(settingsPage->layout()->itemAt(0)->widget()->objectName() ==
+                        QStringLiteral("ToolboxAutoStart"),
+                    "startup is first setting");
+            tabs->setCurrentIndex(0);
+            auto* retention = home->findChild<QComboBox*>(QStringLiteral("LogRetention"));
+            require(retention && retention->currentData().toInt() == 30,
+                    "default retention 30 days");
+            retention->setCurrentIndex(retention->findData(7));
+            require(QSettings(toolbox::settingsPath(), QSettings::IniFormat)
+                            .value(QStringLiteral("logRetentionDays"))
+                            .toInt() == 7,
+                    "retention selection persists immediately");
             require(!QImage(QStringLiteral(":/toolbox/reset.svg")).isNull(),
                     "reset icon must load");
             require(card->accessibleDescription().contains(QStringLiteral("5h")) &&
@@ -167,25 +255,88 @@ int main(int argc, char** argv) {
                     "two quota groups");
             require(card->height() == 36 && card->testAttribute(Qt::WA_TranslucentBackground),
                     "capsule geometry and transparency");
-            auto* styles = home->findChild<QComboBox*>(QStringLiteral("QuotaCardStyle"));
+            auto* styles = home->findChild<QButtonGroup*>(QStringLiteral("QuotaCardStyle"));
             auto* startup = home->findChild<QCheckBox*>(QStringLiteral("ToolboxAutoStart"));
             auto* save = home->findChild<QPushButton*>(QStringLiteral("SaveToolboxSettings"));
             require(styles && startup && save, "new settings controls");
-            styles->setCurrentIndex(1);
+            tabs->setCurrentIndex(2);
+            app.processEvents();
+            shortcut->setFocus();
+            app.processEvents();
+            require(shortcutEditing, "editing suspends registered shortcuts before typing");
+            require(shortcut->width() == 220, "shortcut editor stays compact");
+            shortcut->setKeySequence(QKeySequence(QStringLiteral("Ctrl+Alt+9")));
+            styles->button(1)->click();
             startup->setChecked(true);
             save->click();
+            require(!shortcutEditing && appliedShortcuts.last() == QStringLiteral("Ctrl+Alt+9"),
+                    "save resumes shortcuts and applies saved binding immediately");
             require(card->height() == 112 && autoStartState && autoStartChanges == 1,
                     "four rows and startup change");
             require(QSettings(toolbox::settingsPath(), QSettings::IniFormat)
                             .value(QStringLiteral("cardStyle"))
                             .toString() == QStringLiteral("stacked"),
                     "card style persistence");
-            styles->setCurrentIndex(0);
+            shortcut->setFocus();
+            app.processEvents();
+            require(shortcutEditing, "editing can suspend again");
+            session->setFocus();
+            app.processEvents();
+            require(!shortcutEditing, "leaving editor restores current registered shortcut");
+            shortcut->setKeySequence(QKeySequence(QStringLiteral("Ctrl+Alt+0")));
+            styles->button(0)->click();
             startup->setChecked(false);
             save->click();
+            require(appliedShortcuts.last() == QStringLiteral("Ctrl+Alt+0"),
+                    "subsequent saves update live registration again");
             require(card->height() == 36 && !autoStartState && autoStartChanges == 2,
                     "compact style and disable startup");
+            require(activity->toPlainText().contains(QString::fromUtf8("已保存")) ||
+                        activity->toPlainText().contains(QStringLiteral("Settings saved")),
+                    "settings events are logged");
+            require(activity->toPlainText()
+                            .section(QLatin1Char('\n'), 0, 0)
+                            .contains(QString::fromUtf8("已保存")) ||
+                        activity->toPlainText()
+                            .section(QLatin1Char('\n'), 0, 0)
+                            .contains(QStringLiteral("Settings saved")),
+                    "new events appear first even within the same second");
+            QFile log(toolbox::dataPath() + QStringLiteral("/activity.log"));
+            require(log.open(QIODevice::ReadOnly) && !log.readAll().isEmpty(),
+                    "activity log persists locally");
+            controller.presentText({});
+            app.processEvents();
+            auto* textWindow = home;
+            for (auto* widget : QApplication::topLevelWidgets())
+                if (widget->objectName() == QStringLiteral("TextTranslationWindow"))
+                    textWindow = widget;
+            require(textWindow != home, "translation window opens");
+            auto* direction =
+                textWindow->findChild<QComboBox*>(QStringLiteral("TranslationDirection"));
+            auto* translate = textWindow->findChild<QPushButton*>(QStringLiteral("TranslateText"));
+            auto* originalCopy =
+                textWindow->findChild<QPushButton*>(QStringLiteral("CopyOriginal"));
+            auto* translationCopy =
+                textWindow->findChild<QPushButton*>(QStringLiteral("CopyTranslation"));
+            auto* closeText =
+                textWindow->findChild<QPushButton*>(QStringLiteral("CloseTranslation"));
+            require(direction && translate && originalCopy && translationCopy && closeText &&
+                        direction->x() == translate->x() &&
+                        originalCopy->x() == translationCopy->x() &&
+                        translate->x() < originalCopy->x() && originalCopy->x() < closeText->x(),
+                    "translation actions form three columns");
+            QPointer<QWidget> textGuard = textWindow;
+            closeText->click();
+            require(!textGuard || !textGuard->isVisible(), "exit closes only translation panel");
+            require(home->isVisible() && card->isVisible(), "toolbox stays running");
+            home->activateWindow();
+            app.processEvents();
+            tabs->setCurrentIndex(2);
+            shortcut->setFocus();
+            app.processEvents();
+            require(shortcutEditing, "focus suspends before closing panel");
             home->close();
+            require(!shortcutEditing, "closing panel cannot leave shortcuts suspended");
             require(!home->isVisible());
             controller.showHome();
             require(home->isVisible());
@@ -222,10 +373,7 @@ int main(int argc, char** argv) {
             require(visibleMenus == 1);
             if (contextVerify) {
                 QFile config(profile.filePath(QStringLiteral("config.toml")));
-                require(config.open(QIODevice::WriteOnly));
                 const QByteArray original("# preserved\nmodel = \"test-model\"\n");
-                config.write(original);
-                config.close();
                 auto* toggle = home->findChild<QCheckBox*>(QStringLiteral("CodexContextToggle"));
                 const auto wait = [&] {
                     QElapsedTimer timer;
@@ -234,18 +382,27 @@ int main(int argc, char** argv) {
                         QApplication::processEvents(QEventLoop::AllEvents, 20);
                     require(toggle->isEnabled());
                 };
-                home->findChild<QTabWidget*>()->setCurrentIndex(1);
+                tabs->setCurrentIndex(2);
+                tabs->setCurrentIndex(0);
                 wait();
                 require(!toggle->isChecked());
                 toggle->click();
                 wait();
                 require(toggle->isChecked());
+                require(home->findChild<QLabel*>(QStringLiteral("ToolboxStatus"))
+                            ->text()
+                            .contains(QString::fromUtf8("已启用")),
+                        "enable has visible feedback");
                 require(config.open(QIODevice::ReadOnly));
                 require(config.readAll().contains("model_context_window = 1000000"));
                 config.close();
                 toggle->click();
                 wait();
                 require(!toggle->isChecked());
+                require(home->findChild<QLabel*>(QStringLiteral("ToolboxStatus"))
+                            ->text()
+                            .contains(QString::fromUtf8("默认")),
+                        "disable has visible feedback");
                 require(config.open(QIODevice::ReadOnly));
                 require(config.readAll() == original);
                 config.close();
@@ -276,6 +433,10 @@ int main(int argc, char** argv) {
                         qInfo() << "Quota label" << values->geometry() << values->minimumHeight()
                                 << values->heightForWidth(values->width());
                         widget->findChild<QTabWidget*>()->setCurrentIndex(1);
+                        app.processEvents();
+                        widget->grab().save(QStringLiteral("artifacts/toolbox-ui/logs.png"));
+                        widget->findChild<QTabWidget*>()->setCurrentIndex(2);
+                        app.processEvents();
                         widget->grab().save(QStringLiteral("artifacts/toolbox-ui/settings.png"));
                     }
                 }
@@ -291,6 +452,11 @@ int main(int argc, char** argv) {
                         widget->grab().save(
                             QStringLiteral("artifacts/toolbox-ui/context-setting.png"));
                     }
+                controller.presentText({});
+                app.processEvents();
+                for (auto* widget : QApplication::topLevelWidgets())
+                    if (widget->objectName() == QStringLiteral("TextTranslationWindow"))
+                        widget->grab().save(QStringLiteral("artifacts/toolbox-ui/translation.png"));
                 app.quit();
             });
         });

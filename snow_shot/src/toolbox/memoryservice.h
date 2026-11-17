@@ -8,6 +8,7 @@
 namespace toolbox {
 struct MemorySnapshot {
     quint64 total = 0, available = 0, privateWorking = 0, committed = 0;
+    quint64 virtualTotal = 0, virtualAvailable = 0, systemCache = 0;
     int ownedProcesses = 0;
 };
 class MemoryService final : public QObject {

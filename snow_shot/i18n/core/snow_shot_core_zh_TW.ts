@@ -961,6 +961,10 @@ so every moment on screen can be expressed clearly and shared easily</source>
             <translation>Snow Shot %1 已推出。開啟「關於」查看更新選項</translation>
         </message>
         <message>
+            <source>The screenshot shortcut could not be registered. Choose another shortcut in Settings</source>
+            <translation>截圖快捷鍵註冊失敗，請在設置中改用其他組合鍵</translation>
+        </message>
+        <message>
             <source>The selected file path is invalid</source>
             <translation>所選檔案的路徑無效</translation>
         </message>

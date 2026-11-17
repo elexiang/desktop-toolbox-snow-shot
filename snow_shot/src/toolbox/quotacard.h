@@ -45,8 +45,8 @@ class QuotaCard final : public QWidget {
             return {std::max(150, QFontMetrics(font(10)).horizontalAdvance(m_unavailable) + 28),
                     36};
         if (m_stacked)
-            return {std::max(160, std::max(groupWidth(0), groupWidth(1)) - 20), 112};
-        return {groupWidth(0) + groupWidth(1) + 6, 36};
+            return {std::max(groupWidth(0), groupWidth(1)), 112};
+        return {groupWidth(0) + groupWidth(1) + 1, 36};
     }
 
   protected:
@@ -67,6 +67,10 @@ class QuotaCard final : public QWidget {
             surface(painter, rect(), 26);
             painter.setPen(QColor(65, 81, 108));
             painter.drawLine(16, 56, width() - 16, 56);
+        } else {
+            surface(painter, rect(), 18);
+            painter.setPen(QColor(65, 81, 108));
+            painter.drawLine(groupWidth(0), 9, groupWidth(0), height() - 9);
         }
         int left = 0;
         for (int i = 0; i < 2; ++i) {
@@ -74,21 +78,16 @@ class QuotaCard final : public QWidget {
             const QColor accent = i == 0 ? QColor(98, 220, 230) : QColor(186, 161, 255);
             const QColor number = m_stale ? QColor(142, 157, 181) : accent;
             const int top = m_stacked ? i * 56 : 0;
-            if (!m_stacked)
-                surface(painter, QRect(left, 0, groupWidth(i), 36), 18);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(accent);
-            painter.drawRoundedRect(QRectF(left + 9, top + (m_stacked ? 14 : 13), 3, 10), 1.5, 1.5);
             painter.setFont(font(10, true));
             painter.setPen(accent.lighter(120));
-            painter.drawText(left + 18, top + 23, window.compactTitle);
+            painter.drawText(left + 12, top + 23, window.compactTitle);
             const int percentageX =
-                left + 18 + QFontMetrics(font(10, true)).horizontalAdvance(window.compactTitle) + 8;
+                left + 12 + QFontMetrics(font(10, true)).horizontalAdvance(window.compactTitle) + 8;
             painter.setFont(font(m_stacked ? 13 : 11, true));
             painter.setPen(number);
             painter.drawText(percentageX, top + 23, percent(window));
             int resetX =
-                m_stacked ? 18
+                m_stacked ? 12
                           : percentageX +
                                 QFontMetrics(font(11, true)).horizontalAdvance(percent(window)) + 9;
             const int baseline = top + (m_stacked ? 43 : 23);
@@ -103,7 +102,7 @@ class QuotaCard final : public QWidget {
                 painter.drawText(m_stacked ? width() - 14 : left + groupWidth(i) - 11, top + 23,
                                  QStringLiteral("!"));
             }
-            left += groupWidth(i) + 6;
+            left += groupWidth(i) + 1;
             if (m_stacked)
                 left = 0;
         }
@@ -132,7 +131,13 @@ class QuotaCard final : public QWidget {
         if (index >= m_windows.size())
             return 150;
         const auto& window = m_windows.at(index);
-        return 18 + QFontMetrics(font(10, true)).horizontalAdvance(window.compactTitle) + 8 +
+        const int titleWidth =
+            QFontMetrics(font(10, true)).horizontalAdvance(window.compactTitle) + 8 +
+            QFontMetrics(font(m_stacked ? 13 : 11, true)).horizontalAdvance(percent(window));
+        const int resetWidth = 13 + QFontMetrics(font(9)).horizontalAdvance(reset(window));
+        if (m_stacked)
+            return 12 + std::max(titleWidth, resetWidth) + (m_stale ? 22 : 12);
+        return 12 + QFontMetrics(font(10, true)).horizontalAdvance(window.compactTitle) + 8 +
                QFontMetrics(font(11, true)).horizontalAdvance(percent(window)) + 9 + 13 +
                QFontMetrics(font(9)).horizontalAdvance(reset(window)) + (m_stale ? 22 : 12);
     }

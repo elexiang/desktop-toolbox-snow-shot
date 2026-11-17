@@ -10,6 +10,8 @@
 #include <QPointer>
 #include <QCheckBox>
 #include <QPushButton>
+#include <QPlainTextEdit>
+#include <QToolButton>
 #include <functional>
 
 namespace toolbox {
@@ -18,6 +20,8 @@ struct ToolboxActions {
     std::function<void(bool)> setPinsEnabled = [](bool) {};
     std::function<bool()> autoStartEnabled = [] { return false; };
     std::function<QString(bool)> setAutoStart = [](bool) { return QString(); };
+    std::function<QString()> applyCaptureShortcut = [] { return QString(); };
+    std::function<void(bool)> setShortcutEditing = [](bool) {};
 };
 class ToolboxController final : public QObject {
     Q_OBJECT
@@ -42,30 +46,39 @@ class ToolboxController final : public QObject {
     QWidget *m_home = nullptr, *m_detail = nullptr;
     QuotaCard* m_card = nullptr;
     QLabel *m_quotaLabel = nullptr, *m_detailLabel = nullptr, *m_memoryLabel = nullptr,
-           *m_status = nullptr, *m_detailStatus = nullptr;
+           *m_status = nullptr, *m_detailStatus = nullptr, *m_quotaStatus = nullptr,
+           *m_quotaUpdated = nullptr;
+    QPlainTextEdit* m_log = nullptr;
+    QString m_lastQuotaLog;
     QSystemTrayIcon m_tray;
     QMenu m_menu;
     QTimer m_hover, m_leave;
     QPointer<QWidget> m_textWindow;
     QCheckBox* m_contextToggle = nullptr;
-    QLabel* m_contextStatus = nullptr;
+    QToolButton* m_contextHelp = nullptr;
     QPushButton *m_contextRefresh = nullptr, *m_contextDefault = nullptr;
     QProcess m_contextProcess;
     QTimer m_contextTimeout;
+    QTimer m_logCleanup;
     QString m_contextRevision;
     bool m_contextWriting = false;
     QPoint m_dragOrigin, m_dragPosition;
     bool m_dragging = false, m_moved = false, m_capture = false;
     bool m_quitting = false;
     bool m_pinsEnabled = true;
+    bool m_shortcutEditing = false;
+    void setShortcutEditing(bool editing);
     void buildHome();
-    void applySettings();
+    QString applySettings(bool updateShortcut = true);
     void showDetail();
     void capture();
     void clean(bool deep);
     void runContext(const QString& action);
     void finishContext();
+    void setContextStatus(const QString& text);
+    void cleanupLogs();
     QString quotaHtml() const;
-    QString memoryHtml() const;
+    QString memoryHtml(bool compact = false) const;
+    void appendLog(const QString& message);
 };
 } // namespace toolbox

@@ -49,4 +49,10 @@ if ($LASTEXITCODE) { throw 'Snow Toolbox configuration failed' }
 if (-not $ConfigureOnly) {
     & $CMakeExecutable --build $BuildDirectory --target snow_shot --parallel $Parallelism
     if ($LASTEXITCODE) { throw 'Snow Toolbox build failed' }
+    # An elevated helper does not inherit the development Qt PATH. Keep the
+    # build-tree executable independently runnable, just like the portable app.
+    & (Join-Path $PSScriptRoot 'deploy-toolbox-build-runtime.ps1') `
+        -BuildDirectory $BuildDirectory -QtPrefix $QtPrefix
+    & (Join-Path $PSScriptRoot 'test-toolbox-build-runtime.ps1') `
+        -Executable (Join-Path $BuildDirectory 'snow_shot/SnowToolbox.exe')
 }

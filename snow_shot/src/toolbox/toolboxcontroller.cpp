@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "toolboxcontroller.h"
 #include "toolboxpaths.h"
+#include "activitylog.h"
 #include "offlinetranslator.h"
 #ifndef SNOW_TOOLBOX_TEST_NO_STORAGE
 #include "snow_shot/storage/applicationstorage.h"
@@ -22,11 +23,9 @@ QString style() {
         "#dce2eb;border-radius:12px;}"
         "QLabel{background:transparent;border:0;} "
         "QLabel#Title{font-size:23pt;font-weight:600;color:#142234;}"
-        "QPushButton{border:1px solid #d8dfea;border-radius:7px;padding:10px "
-        "15px;background:#fff;color:#334155;}"
+        "QPushButton{border:1px solid #d8dfea;border-radius:7px;padding:6px "
+        "12px;background:#fff;color:#334155;}"
         "QPushButton:hover{background:#edf3ff;border-color:#93b5f5;} "
-        "QPushButton#Primary{background:#3976e9;color:white;border:0;font-weight:600;}"
-        "QPushButton#Primary:hover{background:#2563cb;} "
         "QPushButton:disabled{color:#96a0b0;background:#edf0f5;}"
         "QTabWidget::pane{border:0;} QTabBar::tab{padding:10px 24px;border:0;color:#778396;}"
         "QTabBar::tab:selected{color:#2563cb;border-bottom:2px solid #3976e9;}"
@@ -71,6 +70,7 @@ QPoint visiblePosition(QPoint position, QSize size) {
 } // namespace
 ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     : QObject(parent), m_actions(std::move(actions)), m_quota(this), m_memory(this) {
+    qApp->setApplicationDisplayName(tr("Longniang Toolbox"));
     qApp->setQuitOnLastWindowClosed(false);
     qApp->installEventFilter(this);
     buildHome();
@@ -85,7 +85,7 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     m_menu.addSeparator();
     m_menu.addAction(tr("Quit toolbox"), qApp, &QApplication::quit);
     m_tray.setIcon(QApplication::windowIcon());
-    m_tray.setToolTip(tr("Snow Toolbox · local and lightweight"));
+    m_tray.setToolTip(tr("Longniang Toolbox"));
     m_tray.setContextMenu(&m_menu);
     m_tray.show();
     connect(&m_tray, &QSystemTrayIcon::activated, this,
@@ -142,10 +142,19 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
         m_detail->hide();
         m_leave.stop();
     });
-    connect(&m_quota, &QuotaService::changed, this, &ToolboxController::refreshUi);
+    connect(&m_quota, &QuotaService::changed, this, [this] {
+        const auto status = m_quota.status();
+        const auto key = status + m_quota.updatedAt().toString(Qt::ISODateWithMs);
+        if (key != m_lastQuotaLog) {
+            appendLog(tr("Codex quota: %1").arg(status));
+            m_lastQuotaLog = key;
+        }
+        refreshUi();
+    });
     connect(&m_memory, &MemoryService::changed, this, &ToolboxController::refreshUi);
     connect(&m_memory, &MemoryService::cleaned, this, [this](const QString& result) {
         m_status->setText(result);
+        appendLog(result);
         refreshUi();
     });
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
@@ -154,13 +163,19 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
         m_quota.shutdown();
         OfflineTranslator::instance().stop();
     });
-    applySettings();
+    applySettings(false);
+    cleanupLogs();
+    m_logCleanup.setInterval(60 * 60 * 1000);
+    connect(&m_logCleanup, &QTimer::timeout, this, &ToolboxController::cleanupLogs);
+    m_logCleanup.start();
+    appendLog(tr("Toolbox started"));
     if (!settings.value(QStringLiteral("hasStarted"), false).toBool()) {
         settings.setValue(QStringLiteral("hasStarted"), true);
         QTimer::singleShot(0, this, &ToolboxController::showHome);
     }
 }
 ToolboxController::~ToolboxController() {
+    setShortcutEditing(false);
     if (m_contextProcess.state() != QProcess::NotRunning) {
         if (!m_contextProcess.waitForFinished(1000)) {
             m_contextProcess.kill();
@@ -174,19 +189,19 @@ ToolboxController::~ToolboxController() {
 void ToolboxController::buildHome() {
     m_home = new QWidget;
     m_home->setObjectName(QStringLiteral("ToolboxHome"));
-    m_home->setWindowTitle(tr("Snow Toolbox · 0.3.0"));
-    m_home->resize(850, 770);
-    m_home->setMinimumSize(740, 740);
+    m_home->setWindowTitle(tr("Longniang Toolbox"));
+    m_home->resize(900, 820);
+    m_home->setMinimumSize(820, 660);
     m_home->setStyleSheet(style());
     m_home->installEventFilter(this);
     auto* layout = new QVBoxLayout(m_home);
     layout->setContentsMargins(28, 22, 28, 22);
     layout->setSpacing(13);
-    label(tr("Snow Toolbox"), layout)->setObjectName(QStringLiteral("Title"));
-    label(tr("Capture, read and keep your quota in view"), layout);
+    label(tr("Longniang Toolbox"), layout)->setObjectName(QStringLiteral("Title"));
     auto* tabs = new QTabWidget;
     layout->addWidget(tabs, 1);
     auto* overview = new QWidget;
+    overview->setObjectName(QStringLiteral("OverviewPage"));
     auto* body = new QVBoxLayout(overview);
     body->setContentsMargins(0, 16, 0, 0);
     body->setSpacing(14);
@@ -195,22 +210,38 @@ void ToolboxController::buildHome() {
     overviewScroll->setWidgetResizable(true);
     overviewScroll->setWidget(overview);
     body->setSizeConstraint(QLayout::SetMinimumSize);
-    tabs->addTab(overviewScroll, tr("Overview"));
-    auto* quotaBox = box(body);
+    tabs->addTab(overviewScroll, tr("Tools"));
+    auto* quotaBox = new QGroupBox(tr("Codex"));
+    quotaBox->setObjectName(QStringLiteral("CodexContextBox"));
+    body->addWidget(quotaBox);
     auto* quotaLayout = new QVBoxLayout(quotaBox);
     quotaLayout->setContentsMargins(20, 17, 20, 17);
     m_quotaLabel = label({}, quotaLayout);
     m_quotaLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_quotaLabel->setObjectName(QStringLiteral("QuotaValues"));
-    m_quotaLabel->setFixedHeight(128);
+    m_quotaLabel->setMinimumHeight(85);
     m_quotaLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    button(tr("Refresh quota"), quotaLayout, [this] { m_quota.refresh(); });
+    auto* quotaFooter = new QHBoxLayout;
+    quotaFooter->setSpacing(12);
+    quotaLayout->addLayout(quotaFooter);
+    m_quotaStatus = label({}, quotaFooter);
+    m_quotaStatus->setObjectName(QStringLiteral("QuotaStatus"));
+    m_quotaStatus->setWordWrap(false);
+    m_quotaStatus->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    quotaFooter->setStretchFactor(m_quotaStatus, 1);
+    m_quotaUpdated = label({}, quotaFooter);
+    m_quotaUpdated->setObjectName(QStringLiteral("QuotaUpdated"));
+    m_quotaUpdated->setWordWrap(false);
+    auto* refresh = button(tr("Manually refresh data"), quotaFooter, [this] {
+        appendLog(tr("Manual quota refresh requested"));
+        m_quota.refresh();
+    });
+    refresh->setObjectName(QStringLiteral("ManualQuotaRefresh"));
     auto* captureRow = new QHBoxLayout;
     body->addLayout(captureRow);
     auto* captureButton = button(tr("Capture region"), captureRow, [this] { capture(); });
-    captureButton->setObjectName(QStringLiteral("Primary"));
+    captureButton->setObjectName(QStringLiteral("CaptureRegion"));
     captureButton->setProperty("requiresCapture", true);
-    captureButton->setMinimumHeight(52);
     auto* paste = button(tr("Pin clipboard image"), captureRow, [this] {
         if (enabled(QStringLiteral("pin")))
             m_actions.pastePin();
@@ -221,10 +252,7 @@ void ToolboxController::buildHome() {
             m_actions.restorePins();
     });
     restore->setObjectName(QStringLiteral("PinButton"));
-    label(tr("Select once, then annotate, recognize text, translate, copy, save or pin. C: RGB · "
-             "X: HEX · Esc: cancel"),
-          body);
-    button(tr("Text and translation panel"), body, [this] {
+    button(tr("Text and translation panel"), captureRow, [this] {
         if (m_textWindow) {
             m_textWindow->show();
             m_textWindow->raise();
@@ -232,10 +260,14 @@ void ToolboxController::buildHome() {
         } else
             presentText({});
     });
+    for (int i = 0; i < captureRow->count(); ++i)
+        captureRow->itemAt(i)->widget()->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    captureRow->addStretch();
     auto* memoryBox = box(body);
     auto* memoryLayout = new QVBoxLayout(memoryBox);
     memoryLayout->setContentsMargins(20, 17, 20, 17);
     m_memoryLabel = label({}, memoryLayout);
+    m_memoryLabel->setObjectName(QStringLiteral("MemoryValues"));
     m_memoryLabel->setMinimumHeight(62);
     auto* memoryRow = new QHBoxLayout;
     memoryLayout->addLayout(memoryRow);
@@ -247,9 +279,40 @@ void ToolboxController::buildHome() {
     label(tr("Manual cleanup only. Deep cleanup requests Windows authorization and can affect "
              "system caches. It does not change the page file"),
           memoryLayout);
-    m_status = label(tr("Ready · OCR and translation run locally"), body);
-    body->addStretch();
+    m_status = new QLabel(m_home);
+    m_status->hide();
+    m_status->setObjectName(QStringLiteral("ToolboxStatus"));
+    auto* logPage = new QWidget;
+    logPage->setObjectName(QStringLiteral("LogPage"));
+    auto* logLayout = new QVBoxLayout(logPage);
+    logLayout->setContentsMargins(0, 16, 0, 0);
+    auto* logRow = new QHBoxLayout;
+    logLayout->addLayout(logRow);
+    label(tr("Recent activity"), logRow);
+    logRow->addStretch();
+    label(tr("Keep logs for"), logRow);
+    auto* retention = new QComboBox;
+    retention->setObjectName(QStringLiteral("LogRetention"));
+    for (int days : {7, 14, 30, 90, 0})
+        retention->addItem(days ? tr("%1 days").arg(days) : tr("Do not auto-clean"), days);
+    const int savedDays = QSettings(settingsPath(), QSettings::IniFormat)
+                              .value(QStringLiteral("logRetentionDays"), 30)
+                              .toInt();
+    retention->setCurrentIndex(std::max(0, retention->findData(savedDays)));
+    logRow->addWidget(retention);
+    connect(retention, &QComboBox::currentIndexChanged, this, [this, retention] {
+        QSettings(settingsPath(), QSettings::IniFormat)
+            .setValue(QStringLiteral("logRetentionDays"), retention->currentData());
+        cleanupLogs();
+    });
+    m_log = new QPlainTextEdit;
+    m_log->setObjectName(QStringLiteral("ActivityLog"));
+    m_log->setReadOnly(true);
+    m_log->setPlainText(recentActivity(dataPath() + QStringLiteral("/activity.log")));
+    logLayout->addWidget(m_log, 1);
+    tabs->addTab(logPage, tr("Logs"));
     auto* settingsPage = new QWidget;
+    settingsPage->setObjectName(QStringLiteral("SettingsPage"));
     auto* settingsLayout = new QVBoxLayout(settingsPage);
     settingsLayout->setContentsMargins(0, 12, 0, 0);
     auto* settingsScroll = new QScrollArea;
@@ -258,6 +321,10 @@ void ToolboxController::buildHome() {
     settingsScroll->setWidget(settingsPage);
     settingsLayout->setSizeConstraint(QLayout::SetMinimumSize);
     tabs->addTab(settingsScroll, tr("Settings"));
+    auto* autoStart = new QCheckBox(tr("Start with Windows"));
+    autoStart->setObjectName(QStringLiteral("ToolboxAutoStart"));
+    autoStart->setChecked(m_actions.autoStartEnabled());
+    settingsLayout->addWidget(autoStart);
     auto* modules = new QGroupBox(tr("Enabled features"));
     auto* moduleGrid = new QGridLayout(modules);
     settingsLayout->addWidget(modules);
@@ -290,19 +357,39 @@ void ToolboxController::buildHome() {
         QKeySequence(settings.value(QStringLiteral("captureShortcut"), QStringLiteral("Ctrl+Alt+1"))
                          .toString()));
     key->setMaximumSequenceLength(1);
-    form->addRow(tr("Screenshot shortcut"), key);
-    auto* cardStyle = new QComboBox;
+    key->setFixedWidth(220);
+    connect(qApp, &QApplication::focusChanged, key, [this, key](QWidget*, QWidget* focused) {
+        setShortcutEditing(focused && (focused == key || key->isAncestorOf(focused)));
+    });
+    connect(qApp, &QGuiApplication::applicationStateChanged, key,
+            [this, key](Qt::ApplicationState state) {
+                auto* focused = QApplication::focusWidget();
+                setShortcutEditing(state == Qt::ApplicationActive && focused &&
+                                   (focused == key || key->isAncestorOf(focused)));
+            });
+    auto* shortcutRow = new QHBoxLayout;
+    shortcutRow->addWidget(key);
+    button(tr("Screenshot session shortcuts…"), shortcutRow, [this] {
+        m_actions.openCaptureSettings();
+    })->setObjectName(QStringLiteral("ScreenshotSessionShortcuts"));
+    shortcutRow->addStretch();
+    key->setObjectName(QStringLiteral("CaptureShortcut"));
+    form->addRow(tr("Screenshot shortcut"), shortcutRow);
+    auto* cardStyle = new QButtonGroup(settingsPage);
     cardStyle->setObjectName(QStringLiteral("QuotaCardStyle"));
-    cardStyle->addItem(tr("Compact dual capsules"), QStringLiteral("compact"));
-    cardStyle->addItem(tr("Four-row pebble"), QStringLiteral("stacked"));
-    cardStyle->setCurrentIndex(
-        settings.value(QStringLiteral("cardStyle")).toString() == QStringLiteral("stacked") ? 1
-                                                                                            : 0);
-    form->addRow(tr("Desktop card style"), cardStyle);
-    auto* autoStart = new QCheckBox(tr("Start with Windows"));
-    autoStart->setObjectName(QStringLiteral("ToolboxAutoStart"));
-    autoStart->setChecked(m_actions.autoStartEnabled());
-    settingsLayout->addWidget(autoStart);
+    auto* styleRow = new QHBoxLayout;
+    auto* compactStyle = new QRadioButton(tr("Compact capsule"));
+    auto* stackedStyle = new QRadioButton(tr("Four-row pebble"));
+    cardStyle->addButton(compactStyle, 0);
+    cardStyle->addButton(stackedStyle, 1);
+    styleRow->addWidget(compactStyle);
+    styleRow->addWidget(stackedStyle);
+    styleRow->addStretch();
+    const bool stacked =
+        settings.value(QStringLiteral("cardStyle")).toString() == QStringLiteral("stacked");
+    compactStyle->setChecked(!stacked);
+    stackedStyle->setChecked(stacked);
+    form->addRow(tr("Desktop card style"), styleRow);
     auto* codexRow = new QHBoxLayout;
     auto* executable = new QLineEdit(
         settings.value(QStringLiteral("codexExecutable"), QuotaService::discover()).toString());
@@ -319,6 +406,8 @@ void ToolboxController::buildHome() {
           settingsLayout);
     button(tr("Save and apply"), settingsLayout,
            [this, checks, key, executable, cardStyle, autoStart] {
+               key->clearFocus();
+               setShortcutEditing(false);
                const auto error = m_actions.setAutoStart(autoStart->isChecked());
                if (!error.isEmpty()) {
                    autoStart->setChecked(m_actions.autoStartEnabled());
@@ -327,7 +416,9 @@ void ToolboxController::buildHome() {
                    return;
                }
                QSettings values(settingsPath(), QSettings::IniFormat);
-               values.setValue(QStringLiteral("cardStyle"), cardStyle->currentData());
+               values.setValue(QStringLiteral("cardStyle"), cardStyle->checkedId() == 1
+                                                                ? QStringLiteral("stacked")
+                                                                : QStringLiteral("compact"));
                for (auto* check : checks)
                    values.setValue(check->property("module").toString(), check->isChecked());
                values.setValue(QStringLiteral("captureShortcut"),
@@ -335,34 +426,37 @@ void ToolboxController::buildHome() {
                values.setValue(QStringLiteral("codexExecutable"), executable->text().trimmed());
                values.sync();
                m_actions.cancelCapture();
-               applySettings();
-               m_status->setText(
-                   tr("Settings saved. Check shortcut conflicts if capture does not respond"));
+               const auto shortcutError = applySettings();
+               m_status->setText(shortcutError.isEmpty() ? tr("Settings saved and applied")
+                                                         : shortcutError);
+               appendLog(m_status->text());
+               m_tray.showMessage(tr("Settings"), m_status->text(),
+                                  shortcutError.isEmpty() ? QSystemTrayIcon::Information
+                                                          : QSystemTrayIcon::Warning);
            })
         ->setObjectName(QStringLiteral("SaveToolboxSettings"));
-    button(tr("Screenshot session shortcuts…"), settingsLayout,
-           [this] { m_actions.openCaptureSettings(); });
-    auto* contextBox = new QGroupBox(tr("Codex context"));
-    settingsLayout->addWidget(contextBox);
-    auto* contextLayout = new QVBoxLayout(contextBox);
+    auto* contextRow = new QHBoxLayout;
+    quotaLayout->addLayout(contextRow);
     m_contextToggle = new QCheckBox(tr("Enable 1M context"));
     m_contextToggle->setObjectName(QStringLiteral("CodexContextToggle"));
     m_contextToggle->setEnabled(false);
-    contextLayout->addWidget(m_contextToggle);
-    label(tr("On: 1,000,000 tokens, compact at 900,000. Off: remove both overrides and use "
-             "the model default. Restart the Codex session to apply. Model support is required"),
-          contextLayout);
-    m_contextStatus =
-        label(tr("Read the current Codex configuration before changing it"), contextLayout);
-    m_contextStatus->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    auto* contextRow = new QHBoxLayout;
-    contextLayout->addLayout(contextRow);
+    contextRow->addWidget(m_contextToggle);
+    m_contextHelp = new QToolButton;
+    m_contextHelp->setText(QStringLiteral("?"));
+    m_contextHelp->setObjectName(QStringLiteral("CodexContextHelp"));
+    m_contextHelp->setAccessibleName(tr("About 1M context"));
+    contextRow->addWidget(m_contextHelp);
+    setContextStatus(tr("Read the current Codex configuration before changing it"));
+    connect(m_contextHelp, &QToolButton::clicked, this, [this] {
+        QMessageBox::information(m_home, tr("About 1M context"), m_contextHelp->toolTip());
+    });
     m_contextRefresh = button(tr("Refresh context setting"), contextRow,
                               [this] { runContext(QStringLiteral("read")); });
     m_contextDefault = button(tr("Restore model defaults"), contextRow,
                               [this] { runContext(QStringLiteral("off")); });
     m_contextDefault->setObjectName(QStringLiteral("CodexContextDefault"));
     m_contextDefault->setEnabled(false);
+    contextRow->addStretch();
     connect(m_contextToggle, &QCheckBox::clicked, this, [this](bool checked) {
         runContext(checked ? QStringLiteral("on") : QStringLiteral("off"));
     });
@@ -376,14 +470,53 @@ void ToolboxController::buildHome() {
                     finishContext();
             });
     connect(tabs, &QTabWidget::currentChanged, this, [this](int index) {
-        if (index == 1)
+        if (index == 0)
             runContext(QStringLiteral("read"));
     });
+    body->addStretch();
     settingsLayout->addStretch();
-    auto* footer = new QHBoxLayout;
-    layout->addLayout(footer);
-    label(tr("Snow Shot 1.5.7 base · offline models sleep after use"), footer);
-    button(tr("Quit toolbox"), footer, [] { QApplication::quit(); });
+}
+void ToolboxController::appendLog(const QString& message) {
+    if (message.isEmpty())
+        return;
+    const auto line = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) +
+                      QStringLiteral("  ") + message.simplified();
+    const auto path = dataPath() + QStringLiteral("/activity.log");
+    QFile file(path);
+    if (file.size() > 256 * 1024 && file.open(QIODevice::ReadOnly)) {
+        auto tail = file.readAll().right(128 * 1024);
+        tail = tail.mid(tail.indexOf('\n') + 1);
+        file.close();
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            file.write(tail);
+            file.close();
+        }
+    }
+    if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        file.write((line + QLatin1Char('\n')).toUtf8());
+        file.close();
+    }
+    if (m_log)
+        m_log->setPlainText(recentActivity(path));
+}
+void ToolboxController::cleanupLogs() {
+    const auto path = dataPath() + QStringLiteral("/activity.log");
+    const int days = QSettings(settingsPath(), QSettings::IniFormat)
+                         .value(QStringLiteral("logRetentionDays"), 30)
+                         .toInt();
+    if (!pruneActivity(path, days, QDateTime::currentDateTime())) {
+        m_status->setText(tr("Unable to clean old logs. Check write access to the data folder"));
+        return;
+    }
+    if (m_log)
+        m_log->setPlainText(recentActivity(path));
+}
+void ToolboxController::setContextStatus(const QString& text) {
+    const auto help =
+        tr("On: 1,000,000 tokens, compact at 900,000. Off: remove both overrides and use "
+           "the model default. Restart the Codex session to apply. Model support is required");
+    m_contextHelp->setToolTip(help + QStringLiteral("\n\n") + text);
+    m_contextHelp->setAccessibleDescription(m_contextHelp->toolTip());
 }
 void ToolboxController::runContext(const QString& action) {
     if (m_contextProcess.state() != QProcess::NotRunning)
@@ -392,15 +525,15 @@ void ToolboxController::runContext(const QString& action) {
     m_contextRefresh->setEnabled(false);
     m_contextDefault->setEnabled(false);
     m_contextWriting = action != QStringLiteral("read");
-    m_contextStatus->setText(tr("Reading or updating the Codex context setting…"));
+    setContextStatus(tr("Reading or updating the Codex context setting…"));
     const auto runtime =
         qEnvironmentVariable("SNOW_TOOLBOX_RUNTIME",
                              QCoreApplication::applicationDirPath() + QStringLiteral("/runtime"));
     QStringList arguments{runtime + QStringLiteral("/codex_context.py"), action};
     if (m_contextWriting)
         arguments.append(m_contextRevision);
-    m_contextProcess.start(runtime + QStringLiteral("/python/python.exe"), arguments);
     m_contextTimeout.start();
+    m_contextProcess.start(runtime + QStringLiteral("/python/python.exe"), arguments);
 }
 void ToolboxController::finishContext() {
     m_contextTimeout.stop();
@@ -413,11 +546,16 @@ void ToolboxController::finishContext() {
         m_contextRevision.isEmpty() || !error.isEmpty()) {
         m_contextRevision.clear();
         m_contextToggle->setChecked(false);
-        m_contextStatus->setText(
+        const auto message =
             error == QStringLiteral("changed")
                 ? tr("The configuration changed elsewhere. Refresh and try again")
                 : tr("Unable to read or update the Codex configuration. Check access and TOML "
-                     "syntax; unsupported layouts are left unchanged"));
+                     "syntax; unsupported layouts are left unchanged");
+        setContextStatus(message);
+        m_status->setText(message);
+        appendLog(message);
+        if (m_contextWriting)
+            m_tray.showMessage(tr("Codex"), message, QSystemTrayIcon::Warning);
         return;
     }
     const auto state = result.value(QStringLiteral("state")).toString();
@@ -438,10 +576,21 @@ void ToolboxController::finishContext() {
         text += QStringLiteral("\n") + tr("Backup: %1").arg(backup);
     if (m_contextWriting)
         text += QStringLiteral("\n") + tr("Saved. Restart the Codex session to apply");
-    m_contextStatus->setText(text);
+    setContextStatus(text);
+    if (m_contextWriting) {
+        m_status->setText(text.section(QLatin1Char('\n'), 0, 0) + QStringLiteral(" · ") +
+                          tr("Saved. Restart the Codex session to apply"));
+        m_tray.showMessage(tr("Codex"), m_status->text(), QSystemTrayIcon::Information);
+        appendLog(tr("Codex context: %1")
+                      .arg(m_contextToggle->isChecked() ? tr("1M context enabled")
+                                                        : tr("Using the model default context")));
+    }
 }
-void ToolboxController::applySettings() {
-    configureCapture();
+QString ToolboxController::applySettings(bool updateShortcut) {
+    const auto shortcutError =
+        configureCapture()
+            ? (updateShortcut ? m_actions.applyCaptureShortcut() : QString())
+            : tr("Unable to apply the screenshot shortcut. Check the shortcut and try again");
     m_quota.setEnabled(enabled(QStringLiteral("quota")));
     m_memory.setEnabled(enabled(QStringLiteral("memory")));
     if (!enabled(QStringLiteral("translation")))
@@ -458,6 +607,15 @@ void ToolboxController::applySettings() {
         m_leave.stop();
     }
     refreshUi();
+    if (m_home->findChild<QTabWidget*>()->currentIndex() == 0)
+        runContext(QStringLiteral("read"));
+    return shortcutError;
+}
+void ToolboxController::setShortcutEditing(bool editing) {
+    if (m_shortcutEditing == editing)
+        return;
+    m_shortcutEditing = editing;
+    m_actions.setShortcutEditing(editing);
 }
 void ToolboxController::showHome() {
     m_home->showNormal();
@@ -469,6 +627,7 @@ void ToolboxController::reportShortcutFailure() {
     const auto message =
         tr("The screenshot shortcut could not be registered. Choose another shortcut in Settings");
     m_status->setText(message);
+    appendLog(message);
     m_tray.showMessage(tr("Screenshot shortcut"), message, QSystemTrayIcon::Warning);
 }
 void ToolboxController::presentText(const QString& text) {
@@ -477,7 +636,8 @@ void ToolboxController::presentText(const QString& text) {
     auto* window = new QWidget(nullptr, Qt::Window | Qt::WindowStaysOnTopHint);
     m_textWindow = window;
     window->setAttribute(Qt::WA_DeleteOnClose);
-    window->setWindowTitle(tr("Local text recognition and translation"));
+    window->setObjectName(QStringLiteral("TextTranslationWindow"));
+    window->setWindowTitle(tr("Longniang Toolbox · text and translation"));
     window->setStyleSheet(style());
     window->resize(880, 510);
     auto* layout = new QVBoxLayout(window);
@@ -496,15 +656,22 @@ void ToolboxController::presentText(const QString& text) {
     editors->addWidget(target);
     auto* state = label({}, layout);
     auto* row = new QHBoxLayout;
+    row->setSpacing(12);
     layout->addLayout(row);
+    auto* translateColumn = new QVBoxLayout;
+    auto* copyColumn = new QVBoxLayout;
+    row->addLayout(translateColumn, 1);
+    row->addLayout(copyColumn, 1);
     auto* direction = new QComboBox;
+    direction->setObjectName(QStringLiteral("TranslationDirection"));
     direction->addItem(tr("Auto Chinese ↔ English"), QString());
     direction->addItem(tr("English → Chinese"), QStringLiteral("zh"));
     direction->addItem(tr("Chinese → English"), QStringLiteral("en"));
-    row->addWidget(direction);
+    direction->setMinimumHeight(32);
+    translateColumn->addWidget(direction);
     auto request = std::make_shared<quint64>(0);
     auto generation = std::make_shared<quint64>(0);
-    const auto translate = [window, source, target, state, direction, request, generation] {
+    const auto translate = [this, window, source, target, state, direction, request, generation] {
         OfflineTranslator::instance().cancel(*request);
         ++*generation;
         if (!enabled(QStringLiteral("translation"))) {
@@ -519,22 +686,31 @@ void ToolboxController::presentText(const QString& text) {
         }
         const auto current = *generation;
         state->setText(tr("Translating locally…"));
+        appendLog(tr("Local translation started"));
         *request = OfflineTranslator::instance().translate(
             source->toPlainText(), direction->currentData().toString(), window,
-            [target, state, generation, current](QString result, QString error) {
+            [this, target, state, generation, current](QString result, QString error) {
                 if (*generation != current)
                     return;
                 target->setPlainText(result);
                 state->setText(error.isEmpty()
                                    ? tr("Complete · the model exits after 60 seconds idle")
                                    : error);
+                appendLog(error.isEmpty() ? tr("Local translation complete") : error);
             });
     };
-    button(tr("Translate"), row, translate);
-    button(tr("Copy original"), row,
-           [source] { QApplication::clipboard()->setText(source->toPlainText()); });
-    button(tr("Copy translation"), row,
-           [target] { QApplication::clipboard()->setText(target->toPlainText()); });
+    button(tr("Translate"), translateColumn, translate)
+        ->setObjectName(QStringLiteral("TranslateText"));
+    button(tr("Copy original"), copyColumn, [source] {
+        QApplication::clipboard()->setText(source->toPlainText());
+    })->setObjectName(QStringLiteral("CopyOriginal"));
+    button(tr("Copy translation"), copyColumn, [target] {
+        QApplication::clipboard()->setText(target->toPlainText());
+    })->setObjectName(QStringLiteral("CopyTranslation"));
+    auto* close = button(tr("Exit"), row, [window] { window->close(); });
+    close->setObjectName(QStringLiteral("CloseTranslation"));
+    close->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    row->setStretchFactor(close, 1);
     auto* debounce = new QTimer(window);
     debounce->setSingleShot(true);
     debounce->setInterval(600);
@@ -545,6 +721,7 @@ void ToolboxController::presentText(const QString& text) {
     window->show();
     window->raise();
     window->activateWindow();
+    appendLog(tr("Text and translation panel opened"));
 }
 void ToolboxController::showCaptureSettings() {
     auto* dialog = new QDialog(m_home);
@@ -596,6 +773,7 @@ void ToolboxController::showCaptureSettings() {
         m_actions.cancelCapture();
         configureCapture();
         dialog->accept();
+        appendLog(tr("Screenshot shortcuts saved"));
     });
     dialog->show();
 }
@@ -607,6 +785,7 @@ void ToolboxController::capture() {
     m_home->hide();
     m_card->hide();
     m_detail->hide();
+    appendLog(tr("Region capture requested"));
     QTimer::singleShot(100, this, [this] { m_actions.capture(); });
 }
 void ToolboxController::captureActivity(bool active) {
@@ -624,6 +803,7 @@ void ToolboxController::clean(bool deep) {
         return;
     OfflineTranslator::instance().releaseIdle();
     m_status->setText(tr("Cleaning memory…"));
+    appendLog(deep ? tr("Deep cleanup requested") : tr("Regular cleanup requested"));
     m_memory.clean(deep);
     refreshUi();
 }
@@ -659,27 +839,43 @@ QString ToolboxController::quotaHtml() const {
     }
     if (!windows.isEmpty())
         html += QStringLiteral("</tr></table>");
-    html += QStringLiteral("<p>%1<br>%2 %3</p>")
-                .arg(m_quota.status().toHtmlEscaped(), tr("Updated:").toHtmlEscaped(),
-                     m_quota.updatedAt().isValid()
-                         ? m_quota.updatedAt().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))
-                         : QStringLiteral("--"));
     return html;
 }
-QString ToolboxController::memoryHtml() const {
+QString ToolboxController::memoryHtml(bool compact) const {
     if (!enabled(QStringLiteral("memory")))
         return tr("Memory information is disabled");
     const auto memory = m_memory.snapshot();
     if (!memory.total)
         return tr("Reading memory…");
-    return tr("<b>Memory</b> · %1% used<br>Available %2 / %3 GiB<br>Toolbox and %4 processes: %5 "
-              "MiB private working set · %6 MiB private commit")
-        .arg(100.0 * (1 - double(memory.available) / double(memory.total)), 0, 'f', 0)
-        .arg(memory.available / 1073741824.0, 0, 'f', 2)
-        .arg(memory.total / 1073741824.0, 0, 'f', 2)
-        .arg(memory.ownedProcesses)
-        .arg(memory.privateWorking / 1048576.0, 0, 'f', 1)
-        .arg(memory.committed / 1048576.0, 0, 'f', 1);
+    const auto capacity = [](const QString& title, quint64 total, quint64 available) {
+        return QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:#3976e9'>%2%</span>"
+                              " · %3<br>%4<br>%5")
+            .arg(title.toHtmlEscaped())
+            .arg(total ? 100.0 * (1 - double(available) / double(total)) : 0, 0, 'f', 0)
+            .arg(tr("Used").toHtmlEscaped())
+            .arg(tr("%1 / %2 GiB")
+                     .arg((total - available) / 1073741824.0, 0, 'f', 2)
+                     .arg(total / 1073741824.0, 0, 'f', 2))
+            .arg(tr("Available: %1 GiB").arg(available / 1073741824.0, 0, 'f', 2));
+    };
+    const QStringList cells{
+        capacity(tr("Physical memory"), memory.total, memory.available),
+        capacity(tr("Virtual memory (commit)"), memory.virtualTotal, memory.virtualAvailable),
+        QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:#3976e9'>%2 GiB</span>")
+            .arg(tr("System cache").toHtmlEscaped())
+            .arg(memory.systemCache / 1073741824.0, 0, 'f', 2)};
+    QString html = QStringLiteral("<table width='100%' cellspacing='0' cellpadding='4'><tr>");
+    for (int i = 0; i < cells.size(); ++i) {
+        if (compact && i)
+            html += QStringLiteral("</tr><tr>");
+        html += QStringLiteral("<td valign='top'>") + cells[i] + QStringLiteral("</td>");
+    }
+    html += QStringLiteral("</tr></table><p style='color:#64748b'>");
+    html += tr("Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit")
+                .arg(memory.ownedProcesses)
+                .arg(memory.privateWorking / 1048576.0, 0, 'f', 1)
+                .arg(memory.committed / 1048576.0, 0, 'f', 1);
+    return html + QStringLiteral("</p>");
 }
 void ToolboxController::refreshUi() {
     if (!m_card)
@@ -691,8 +887,17 @@ void ToolboxController::refreshUi() {
                     tr("Disabled"));
     m_card->move(visiblePosition(m_card->pos(), m_card->size()));
     m_quotaLabel->setText(quotaHtml());
+    m_quotaStatus->setText(m_quota.status());
+    m_quotaStatus->setToolTip(m_quota.status());
+    m_quotaUpdated->setText(
+        tr("Updated: %1")
+            .arg(m_quota.updatedAt().isValid()
+                     ? m_quota.updatedAt().toString(QStringLiteral("MM-dd HH:mm:ss"))
+                     : QStringLiteral("--")));
     m_memoryLabel->setText(memoryHtml());
-    m_detailLabel->setText(quotaHtml() + QStringLiteral("<hr>") + memoryHtml());
+    m_detailLabel->setText(quotaHtml() + QStringLiteral("<p>") + m_quota.status().toHtmlEscaped() +
+                           QStringLiteral("<br>") + m_quotaUpdated->text().toHtmlEscaped() +
+                           QStringLiteral("</p><hr>") + memoryHtml(true));
     m_detailStatus->setText(m_status->text());
     for (auto* window : {m_home, m_detail})
         for (auto* buttonWidget : window->findChildren<QPushButton*>()) {
@@ -722,6 +927,8 @@ void ToolboxController::showDetail() {
     m_leave.start();
 }
 bool ToolboxController::eventFilter(QObject* object, QEvent* event) {
+    if (object == m_home && (event->type() == QEvent::Hide || event->type() == QEvent::Close))
+        setShortcutEditing(false);
     if (object == qApp && event->type() == QEvent::Quit)
         m_quitting = true;
     if (object == m_home && event->type() == QEvent::Close && !m_quitting) {

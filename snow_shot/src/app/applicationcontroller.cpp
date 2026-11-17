@@ -1344,6 +1344,28 @@ class ApplicationController::Impl {
                         configuration.setValue(QStringLiteral("system/auto_start_at_boot"),
                                                previous);
                     return result.success ? QString() : result.error;
+                },
+                [this] {
+                    const auto action = presentation::GlobalShortcutAction::Screenshot;
+                    if (!globalShortcutManager.setShortcuts(
+                            action, storage::ShortcutSettings().screenshot()) ||
+                        globalShortcutManager.state(action).status ==
+                            presentation::GlobalShortcutStatus::Failed)
+                        return ApplicationController::tr(
+                            "The screenshot shortcut could not be registered. Choose another "
+                            "shortcut in Settings");
+                    return QString();
+                },
+                [this, handle = std::make_shared<std::optional<
+                           presentation::GlobalShortcutManager::RegistrationSuspensionHandle>>()](
+                    bool editing) {
+                    if (editing && !*handle)
+                        *handle = globalShortcutManager.suspendRegistrations();
+                    else if (!editing && *handle) {
+                        const auto token = **handle;
+                        handle->reset();
+                        globalShortcutManager.resumeRegistrations(token);
+                    }
                 }},
             &q);
         QObject::connect(

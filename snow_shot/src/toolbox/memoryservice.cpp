@@ -122,7 +122,13 @@ MemorySnapshot MemoryService::collect() {
     if (GlobalMemoryStatusEx(&memory)) {
         result.total = memory.ullTotalPhys;
         result.available = memory.ullAvailPhys;
+        result.virtualTotal = memory.ullTotalPageFile;
+        result.virtualAvailable = memory.ullAvailPageFile;
     }
+    PERFORMANCE_INFORMATION performance{};
+    performance.cb = sizeof(performance);
+    if (GetPerformanceInfo(&performance, sizeof(performance)))
+        result.systemCache = quint64(performance.SystemCache) * performance.PageSize;
     const auto list = processes();
     QSet<DWORD> owned{GetCurrentProcessId()};
     for (int pass = 0; pass < list.size(); ++pass) {

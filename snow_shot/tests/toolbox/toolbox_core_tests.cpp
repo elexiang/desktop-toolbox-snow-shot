@@ -3,6 +3,7 @@
 #include "offlinetranslator.h"
 #include "memoryservice.h"
 #include "toolboxpaths.h"
+#include "activitylog.h"
 #include "snow_shot/presentation/screenshotcolorpickercontroller.h"
 #include "snow_shot/image/screenshotregiongeometry.h"
 #include <QPainter>
@@ -24,6 +25,36 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QTemporaryDir temporary;
     qputenv("SNOW_TOOLBOX_DATA", temporary.path().toUtf8());
+    const auto logPath = temporary.filePath(QStringLiteral("activity.log"));
+    const auto now = QDateTime::fromString(QStringLiteral("2026-11-16 12:00:00"),
+                                           QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    QFile log(logPath);
+    require(log.open(QIODevice::WriteOnly), "open retention fixture");
+    log.write("2026-10-01 12:00:00  expired\n2026-11-09 12:00:00  boundary\n"
+              "2026-11-16 11:00:00  recent\nlegacy entry\n");
+    log.close();
+    require(toolbox::pruneActivity(logPath, 0, now) && toolbox::activityLines(logPath).size() == 4,
+            "disabled retention preserves all records");
+    require(toolbox::pruneActivity(logPath, 7, now), "cleanup succeeds");
+    const auto retained = toolbox::activityLines(logPath);
+    require(retained.size() == 3 && retained[0].contains(QStringLiteral("boundary")) &&
+                retained[2] == QStringLiteral("legacy entry"),
+            "cleanup keeps cutoff boundary, recent and unrecognized legacy entries");
+    const auto newest = toolbox::recentActivity(logPath);
+    require(newest.indexOf(QStringLiteral("recent")) < newest.indexOf(QStringLiteral("boundary")),
+            "logs display newest timestamp first");
+    require(toolbox::pruneActivity(logPath, 7, now) && toolbox::activityLines(logPath) == retained,
+            "repeated cleanup is idempotent");
+    require(log.open(QIODevice::WriteOnly | QIODevice::Truncate), "open long log fixture");
+    for (int i = 0; i < 600; ++i)
+        log.write((now.addSecs(i).toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) +
+                   QStringLiteral("  entry\n"))
+                      .toUtf8());
+    log.close();
+    const auto visibleLogs = toolbox::recentActivity(logPath).split(QLatin1Char('\n'));
+    require(visibleLogs.size() == 500 && visibleLogs.first().startsWith(now.addSecs(599).toString(
+                                             QStringLiteral("yyyy-MM-dd HH:mm:ss"))),
+            "view keeps latest 500 records when prepending");
     const QRectF circleBounds(-200, -100, 800, 600);
     for (const auto& pointer : {QPointF(100, 50), QPointF(-100, -80), QPointF(900, 900)}) {
         const auto path = screenshotCircleRegionPath(QPointF(0, 0), pointer, circleBounds);
@@ -93,6 +124,9 @@ int main(int argc, char** argv) {
     const auto memory = toolbox::MemoryService::collect();
     require(memory.total > 0 && memory.privateWorking > 0 && memory.ownedProcesses > 0,
             "whole owned tree memory counters");
+    require(memory.virtualTotal > 0 && memory.virtualAvailable <= memory.virtualTotal &&
+                memory.available <= memory.total && memory.systemCache > 0,
+            "physical, system commit and cache counters");
     toolbox::QuotaService quota;
     require(quota.stale() && quota.windows().isEmpty(), "new service must not invent quota");
     auto& translator = toolbox::OfflineTranslator::instance();

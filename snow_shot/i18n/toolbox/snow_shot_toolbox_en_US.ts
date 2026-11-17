@@ -113,12 +113,20 @@
     <context>
         <name>toolbox::ToolboxController</name>
         <message>
+            <source>%1 / %2 GiB</source>
+            <translation>%1 / %2 GiB</translation>
+        </message>
+        <message>
+            <source>%1 days</source>
+            <translation>%1 days</translation>
+        </message>
+        <message>
             <source>1M context enabled</source>
             <translation>1M context enabled</translation>
         </message>
         <message>
-            <source>&lt;b&gt;Memory&lt;/b&gt; · %1% used&lt;br&gt;Available %2 / %3 GiB&lt;br&gt;Toolbox and %4 processes: %5 MiB private working set · %6 MiB private commit</source>
-            <translation>&lt;b&gt;Memory&lt;/b&gt; · %1% used&lt;br&gt;Available %2 / %3 GiB&lt;br&gt;Toolbox and %4 processes: %5 MiB private working set · %6 MiB private commit</translation>
+            <source>About 1M context</source>
+            <translation>About 1M context</translation>
         </message>
         <message>
             <source>Annotation tools</source>
@@ -127,6 +135,10 @@
         <message>
             <source>Auto Chinese ↔ English</source>
             <translation>Auto Chinese ↔ English</translation>
+        </message>
+        <message>
+            <source>Available: %1 GiB</source>
+            <translation>Available: %1 GiB</translation>
         </message>
         <message>
             <source>Backup: %1</source>
@@ -145,10 +157,6 @@
             <translation>Capture region</translation>
         </message>
         <message>
-            <source>Capture, read and keep your quota in view</source>
-            <translation>Capture, read and keep your quota in view</translation>
-        </message>
-        <message>
             <source>Chinese → English</source>
             <translation>Chinese → English</translation>
         </message>
@@ -165,12 +173,16 @@
             <translation>Closing this panel keeps the card and tray active. Disable a feature to stop its background activity. Translation may use internal OCR when the OCR button is hidden</translation>
         </message>
         <message>
+            <source>Codex</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
             <source>Codex CLI</source>
             <translation>Codex CLI</translation>
         </message>
         <message>
-            <source>Codex context</source>
-            <translation>Codex context</translation>
+            <source>Codex context: %1</source>
+            <translation>Codex context: %1</translation>
         </message>
         <message>
             <source>Codex quota</source>
@@ -181,12 +193,16 @@
             <translation>Codex quota card</translation>
         </message>
         <message>
+            <source>Codex quota: %1</source>
+            <translation>Codex quota: %1</translation>
+        </message>
+        <message>
             <source>Color picker</source>
             <translation>Color picker</translation>
         </message>
         <message>
-            <source>Compact dual capsules</source>
-            <translation>Compact dual capsules</translation>
+            <source>Compact capsule</source>
+            <translation>Compact capsule</translation>
         </message>
         <message>
             <source>Complete · the model exits after 60 seconds idle</source>
@@ -209,6 +225,10 @@
             <translation>Custom context override detected; enable 1M or restore model defaults</translation>
         </message>
         <message>
+            <source>Deep cleanup requested</source>
+            <translation>Deep cleanup requested</translation>
+        </message>
+        <message>
             <source>Deep cleanup…</source>
             <translation>Deep cleanup…</translation>
         </message>
@@ -223,6 +243,10 @@
         <message>
             <source>Disabled</source>
             <translation>Disabled</translation>
+        </message>
+        <message>
+            <source>Do not auto-clean</source>
+            <translation>Do not auto-clean</translation>
         </message>
         <message>
             <source>Enable 1M context</source>
@@ -241,16 +265,48 @@
             <translation>English → Chinese</translation>
         </message>
         <message>
+            <source>Exit</source>
+            <translation>Exit</translation>
+        </message>
+        <message>
             <source>Four-row pebble</source>
             <translation>Four-row pebble</translation>
         </message>
         <message>
-            <source>Local text recognition and translation</source>
-            <translation>Local text recognition and translation</translation>
+            <source>Keep logs for</source>
+            <translation>Keep logs for</translation>
+        </message>
+        <message>
+            <source>Local translation complete</source>
+            <translation>Local translation complete</translation>
+        </message>
+        <message>
+            <source>Local translation started</source>
+            <translation>Local translation started</translation>
+        </message>
+        <message>
+            <source>Logs</source>
+            <translation>Logs</translation>
+        </message>
+        <message>
+            <source>Longniang Toolbox</source>
+            <translation>Longniang Toolbox</translation>
+        </message>
+        <message>
+            <source>Longniang Toolbox · text and translation</source>
+            <translation>Longniang Toolbox · text and translation</translation>
         </message>
         <message>
             <source>Manual cleanup only. Deep cleanup requests Windows authorization and can affect system caches. It does not change the page file</source>
             <translation>Manual cleanup only. Deep cleanup requests Windows authorization and can affect system caches. It does not change the page file</translation>
+        </message>
+        <message>
+            <source>Manual quota refresh requested</source>
+            <translation>Manual quota refresh requested</translation>
+        </message>
+        <message>
+            <source>Manually refresh data</source>
+            <translation>Manually refresh data</translation>
         </message>
         <message>
             <source>Memory cleanup</source>
@@ -285,8 +341,8 @@
             <translation>Original text → offline translation</translation>
         </message>
         <message>
-            <source>Overview</source>
-            <translation>Overview</translation>
+            <source>Physical memory</source>
+            <translation>Physical memory</translation>
         </message>
         <message>
             <source>Pin clipboard image</source>
@@ -317,8 +373,8 @@
             <translation>Reading or updating the Codex context setting…</translation>
         </message>
         <message>
-            <source>Ready · OCR and translation run locally</source>
-            <translation>Ready · OCR and translation run locally</translation>
+            <source>Recent activity</source>
+            <translation>Recent activity</translation>
         </message>
         <message>
             <source>Refresh context setting</source>
@@ -329,8 +385,16 @@
             <translation>Refresh quota</translation>
         </message>
         <message>
+            <source>Region capture requested</source>
+            <translation>Region capture requested</translation>
+        </message>
+        <message>
             <source>Regular cleanup</source>
             <translation>Regular cleanup</translation>
+        </message>
+        <message>
+            <source>Regular cleanup requested</source>
+            <translation>Regular cleanup requested</translation>
         </message>
         <message>
             <source>Remaining</source>
@@ -373,12 +437,12 @@
             <translation>Screenshot shortcut</translation>
         </message>
         <message>
-            <source>Select Codex CLI</source>
-            <translation>Select Codex CLI</translation>
+            <source>Screenshot shortcuts saved</source>
+            <translation>Screenshot shortcuts saved</translation>
         </message>
         <message>
-            <source>Select once, then annotate, recognize text, translate, copy, save or pin. C: RGB · X: HEX · Esc: cancel</source>
-            <translation>Select once, then annotate, recognize text, translate, copy, save or pin. C: RGB · X: HEX · Esc: cancel</translation>
+            <source>Select Codex CLI</source>
+            <translation>Select Codex CLI</translation>
         </message>
         <message>
             <source>Selected profile: %1</source>
@@ -389,32 +453,24 @@
             <translation>Settings</translation>
         </message>
         <message>
-            <source>Settings saved. Check shortcut conflicts if capture does not respond</source>
-            <translation>Settings saved. Check shortcut conflicts if capture does not respond</translation>
-        </message>
-        <message>
-            <source>Snow Shot 1.5.7 base · offline models sleep after use</source>
-            <translation>Snow Shot 1.5.7 base · offline models sleep after use</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox</source>
-            <translation>Snow Toolbox</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox · 0.3.0</source>
-            <translation>Snow Toolbox · 0.3.0</translation>
-        </message>
-        <message>
-            <source>Snow Toolbox · local and lightweight</source>
-            <translation>Snow Toolbox · local and lightweight</translation>
+            <source>Settings saved and applied</source>
+            <translation>Settings saved and applied</translation>
         </message>
         <message>
             <source>Start with Windows</source>
             <translation>Start with Windows</translation>
         </message>
         <message>
+            <source>System cache</source>
+            <translation>System cache</translation>
+        </message>
+        <message>
             <source>Text and translation panel</source>
             <translation>Text and translation panel</translation>
+        </message>
+        <message>
+            <source>Text and translation panel opened</source>
+            <translation>Text and translation panel opened</translation>
         </message>
         <message>
             <source>Text recognition</source>
@@ -429,6 +485,18 @@
             <translation>The screenshot shortcut could not be registered. Choose another shortcut in Settings</translation>
         </message>
         <message>
+            <source>Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit</source>
+            <translation>Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit</translation>
+        </message>
+        <message>
+            <source>Toolbox started</source>
+            <translation>Toolbox started</translation>
+        </message>
+        <message>
+            <source>Tools</source>
+            <translation>Tools</translation>
+        </message>
+        <message>
             <source>Translate</source>
             <translation>Translate</translation>
         </message>
@@ -441,16 +509,32 @@
             <translation>Type or paste text here</translation>
         </message>
         <message>
+            <source>Unable to apply the screenshot shortcut. Check the shortcut and try again</source>
+            <translation>Unable to apply the screenshot shortcut. Check the shortcut and try again</translation>
+        </message>
+        <message>
+            <source>Unable to clean old logs. Check write access to the data folder</source>
+            <translation>Unable to clean old logs. Check write access to the data folder</translation>
+        </message>
+        <message>
             <source>Unable to read or update the Codex configuration. Check access and TOML syntax; unsupported layouts are left unchanged</source>
             <translation>Unable to read or update the Codex configuration. Check access and TOML syntax; unsupported layouts are left unchanged</translation>
         </message>
         <message>
-            <source>Updated:</source>
-            <translation>Updated:</translation>
+            <source>Updated: %1</source>
+            <translation>Updated: %1</translation>
+        </message>
+        <message>
+            <source>Used</source>
+            <translation>Used</translation>
         </message>
         <message>
             <source>Using the model default context</source>
             <translation>Using the model default context</translation>
+        </message>
+        <message>
+            <source>Virtual memory (commit)</source>
+            <translation>Virtual memory (commit)</translation>
         </message>
     </context>
 </TS>
