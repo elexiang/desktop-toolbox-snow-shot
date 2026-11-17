@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "toolboxcontroller.h"
+#include "appfeedback.h"
 #include "toolboxpaths.h"
 #include <QApplication>
 #include <QTranslator>
@@ -253,6 +254,11 @@ int main(int argc, char** argv) {
             require(card->accessibleDescription().contains(QStringLiteral("5h")) &&
                         card->accessibleDescription().contains(QStringLiteral("w")),
                     "two quota groups");
+            require(home->size() == QSize(900, 820), "original panel dimensions");
+            require(home->findChild<QLabel*>(QStringLiteral("DragonAccent"))->size() ==
+                        QSize(36, 36), "dragon remains a small title accent");
+            require(!QImage(QStringLiteral(":/toolbox/dragon/avatar.png")).isNull(),
+                    "dragon asset embedded");
             require(card->height() == 36 && card->testAttribute(Qt::WA_TranslucentBackground),
                     "capsule geometry and transparency");
             auto* styles = home->findChild<QButtonGroup*>(QStringLiteral("QuotaCardStyle"));
@@ -457,7 +463,23 @@ int main(int argc, char** argv) {
                 for (auto* widget : QApplication::topLevelWidgets())
                     if (widget->objectName() == QStringLiteral("TextTranslationWindow"))
                         widget->grab().save(QStringLiteral("artifacts/toolbox-ui/translation.png"));
-                app.quit();
+                toolbox::AppFeedback::show(QStringLiteral("Settings"),
+                                           QStringLiteral("Saved and applied"));
+                app.processEvents();
+                toolbox::AppFeedback::current()->grab().save(
+                    QStringLiteral("artifacts/toolbox-ui/feedback.png"));
+                for (auto* widget : QApplication::topLevelWidgets())
+                    if (widget->objectName() == QStringLiteral("QuotaCard")) {
+                        QEvent enter(QEvent::Enter);
+                        QApplication::sendEvent(widget, &enter);
+                    }
+                QTimer::singleShot(350, &app, [&] {
+                    for (auto* widget : QApplication::topLevelWidgets())
+                        if (widget->objectName() == QStringLiteral("QuotaDetail"))
+                            widget->grab().save(
+                                QStringLiteral("artifacts/toolbox-ui/hover.png"));
+                    app.quit();
+                });
             });
         });
     return app.exec();

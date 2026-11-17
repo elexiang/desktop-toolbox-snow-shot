@@ -34,7 +34,15 @@ target_include_directories(snow-toolbox-ui-render PRIVATE "${toolbox_dir}")
 target_link_libraries(snow-toolbox-ui-render PRIVATE Qt6::Widgets Qt6::Concurrent psapi shell32 advapi32)
 qt_add_resources(snow-toolbox-ui-render toolbox_test_icons PREFIX "/toolbox"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/toolbox"
-    FILES ../../resources/toolbox/reset.svg)
+    FILES ../../resources/toolbox/reset.svg ../../resources/toolbox/dragon/avatar.png
+          ../../resources/toolbox/dragon/app.ico)
 add_test(NAME snow-toolbox-ui-state-tests COMMAND snow-toolbox-ui-render --verify)
 set_tests_properties(snow-toolbox-core-tests snow-toolbox-ui-state-tests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
+
+add_executable(snow-toolbox-feedback-tests toolbox_feedback_tests.cpp)
+target_include_directories(snow-toolbox-feedback-tests PRIVATE "${toolbox_dir}")
+target_link_libraries(snow-toolbox-feedback-tests PRIVATE Qt6::Widgets)
+add_test(NAME snow-toolbox-feedback-tests COMMAND snow-toolbox-feedback-tests)
+set_tests_properties(snow-toolbox-feedback-tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)

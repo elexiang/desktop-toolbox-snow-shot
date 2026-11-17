@@ -48,3 +48,9 @@
 ## Licensing & Configuration
 - Multi-license repo: keep Apache-2.0 code in `ant_design_qt/`, `snow_draw_engine_qt/`, and `snow_memory/`; keep GPL-3.0-or-later code in `snow_shot/`, `snow_image/`, `snow_image_viewer/`, `snow-crates/`, and `snow_rust_ffi/`. The independent `snow-crates/crates/simd-paddle-ocr-rs/` submodule retains Apache-2.0. After adding a dependency, run `scripts/collect-third-party-licenses.ps1` and update the project's `THIRD_PARTY_NOTICES.md` (`snow_shot/`, `ant_design_qt/`).
 - `SNOW_APPS_API_BASE_URL` is set per preset; never hard-code endpoints or secrets.
+
+## User-selected toolbox mainline (2026-11-17)
+- Continue toolbox work on `codex/dragon-accents`, based on the pre-dragon 0.3.2 snapshot `8d77f5b1`. `codex/snow-shot` preserves that baseline.
+- Preserve Tools / Logs / Settings, all screenshot/recognition/translation/pin functions, both quota card styles and dimensions, 1M controls, memory tools and existing interaction details.
+- GPT dragon fan art is a small decorative accent only. Do not introduce a large welcome section, redesign navigation or replace the quota card with a character widget.
+- Build and verify the runnable preview; do not package until the user asks.

@@ -1,5 +1,14 @@
 # Snow Shot Third-Party Notices
 
+## GPT dragon girl artwork accents
+
+Unofficial fan artwork, unrelated to an official OpenAI product identity.
+The existing 2026-11-17 avatar and ICO are reused from the legacy toolbox trial.
+Character reference: ZipZipPipe; chibi reference: ApprenTice. Artwork is retained
+under the referenced CC BY-NC-SA 4.0 conditions, separately from the software
+license. See `resources/toolbox/dragon/ARTWORK_LICENSE.txt` for source URLs and
+attribution. This preview is for personal, noncommercial use.
+
 ## Snow Toolbox local extensions
 
 This fork adds a local Codex quota card, feature controls, memory operations,

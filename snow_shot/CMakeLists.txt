@@ -2239,7 +2239,8 @@ target_sources(snow_shot PRIVATE
     src/toolbox/toolboxcontroller.h src/toolbox/toolboxcontroller.cpp)
 qt_add_resources(snow_shot snow_toolbox_icons PREFIX "/toolbox"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources/toolbox"
-    FILES resources/toolbox/reset.svg)
+    FILES resources/toolbox/reset.svg resources/toolbox/dragon/avatar.png
+          resources/toolbox/dragon/app.ico)
 target_link_libraries(snow_shot PRIVATE psapi shell32 advapi32 Qt6::Concurrent)
 set_target_properties(snow_shot PROPERTIES OUTPUT_NAME SnowToolbox)
 snow_shot_link_macos_window_platform(snow_shot)

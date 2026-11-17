@@ -1,6 +1,6 @@
 # 龙娘工具箱 · 开发预览
 
-基于 Snow Shot 1.5.7（`6a9c162f56e73a95190015c5825440106a114c0f`）的 Windows x64 个人工具箱，保留上游 Qt/C++ 与 Rust 架构。新增代码采用 GPL-3.0-or-later。开发分支为 `codex/snow-shot`。
+基于 Snow Shot 1.5.7（`6a9c162f56e73a95190015c5825440106a114c0f`）的 Windows x64 个人工具箱，保留上游 Qt/C++ 与 Rust 架构。新增代码采用 GPL-3.0-or-later。当前主线开发分支为 `codex/dragon-accents`（从 `codex/snow-shot` 的 0.3.2 开发状态建立）。
 
 完整解压后双击 **SnowToolbox.exe**。关闭面板只隐藏；退出请使用面板、额度卡片右键或托盘中的“退出工具箱”。首次打开显示面板，之后保留桌面额度卡片和托盘。
 
@@ -28,3 +28,5 @@
 源码构建需要 MSVC 14.51+、Rust 1.97.1、CMake 4.2+、Qt 6.12.0 和固定版本 vcpkg 依赖。可使用 `scripts/build-toolbox.ps1` 构建动态 Qt Release；`scripts/package-toolbox.ps1` 部署便携目录。可通过 `-OcrExecutable` 复用已校验的官方 OCR 工作程序，并同时提供完整 `assets/ocr` 资源。源码、版本和授权信息随交付包提供。
 
 完整包无需预装 Qt、Rust 或 Python。此版本未购买代码签名证书；具体已通过项目和多屏/DPI等未验证项目，以交付验收说明为准。
+
+本轮仅加入龙娘点缀：主标题旁 36px 头像、程序/托盘图标、额度悬停详情的按钮图标，以及短暂操作提示。保留原有工具／日志／设置布局、截图流程、两种额度卡尺寸与内容、1M 配置、内存功能和翻译操作区；不增加欢迎区或独立常驻桌宠。设置等主动操作使用约 2.5 秒提示；后台提醒才使用系统通知。美术归属及许可见 `snow_shot/resources/toolbox/dragon/ARTWORK_LICENSE.txt`，软件与美术授权分别适用。本轮只构建预览，不生成压缩包。

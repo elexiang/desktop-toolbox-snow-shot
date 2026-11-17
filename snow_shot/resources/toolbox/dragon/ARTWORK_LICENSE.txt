@@ -1,0 +1,18 @@
+GPT Dragon Girl fan artwork - unofficial, not affiliated with OpenAI.
+
+Character reference: ZipZipPipe
+https://www.bilibili.com/video/BV1tE9XBbErS/
+Chibi reference: ApprenTice (AI-assisted derivative)
+https://github.com/Apprentice-Geo/AI-Fanworks/blob/ee1f5176710f3bcfd60ee5cb0af00f77ed96748e/ApprenTice/AI-Girls-and-Chibis/ChatGPT-Chibi.png
+Author license statement:
+https://github.com/Apprentice-Geo/AI-Fanworks/blob/ee1f5176710f3bcfd60ee5cb0af00f77ed96748e/ApprenTice/AI-Girls-and-Chibis/README.md
+
+Modifications: transparent full-body and avatar derivatives generated with built-in image_gen on 2026-11-17; resized to 512px and encoded as multi-resolution ICO for DesktopToolbox. Master PNG files included with project sources.
+These artwork derivatives (PNG and ICO in icons/dragon) are shared under CC BY-NC-SA 4.0, to the extent applicable rights are held, and retain the conditions of referenced works. This does not license third-party trademarks. Code remains separately licensed.
+
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Legal code: https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.en
+Retain attribution, link to the license, indicate changes, use for noncommercial purposes, and distribute adaptations under the same license.
+
+Reuse on 2026-11-17: unchanged avatar.png and app.ico copied into Snow Shot resources/toolbox/dragon as small UI accents. Original master PNGs remain in the preserved legacy branch codex/archive-ksnip-dragon-20261117, icons/dragon. No full-body artwork is embedded in this preview.

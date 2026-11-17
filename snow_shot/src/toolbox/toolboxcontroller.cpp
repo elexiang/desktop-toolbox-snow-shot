@@ -2,6 +2,7 @@
 #include "toolboxcontroller.h"
 #include "toolboxpaths.h"
 #include "activitylog.h"
+#include "appfeedback.h"
 #include "offlinetranslator.h"
 #ifndef SNOW_TOOLBOX_TEST_NO_STORAGE
 #include "snow_shot/storage/applicationstorage.h"
@@ -71,6 +72,7 @@ QPoint visiblePosition(QPoint position, QSize size) {
 ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     : QObject(parent), m_actions(std::move(actions)), m_quota(this), m_memory(this) {
     qApp->setApplicationDisplayName(tr("Longniang Toolbox"));
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/toolbox/dragon/app.ico")));
     qApp->setQuitOnLastWindowClosed(false);
     qApp->installEventFilter(this);
     buildHome();
@@ -120,7 +122,9 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     regular->setObjectName(QStringLiteral("CleanupButton"));
     auto* deep = button(tr("Deep cleanup…"), cleanup, [this] { clean(true); });
     deep->setObjectName(QStringLiteral("CleanupButton"));
-    button(tr("Open toolbox"), detailLayout, [this] { showHome(); });
+    auto* openToolbox = button(tr("Open toolbox"), detailLayout, [this] { showHome(); });
+    openToolbox->setIcon(QIcon(QStringLiteral(":/toolbox/dragon/app.ico")));
+    openToolbox->setIconSize(QSize(22, 22));
     m_detailStatus = label({}, detailLayout);
     const auto reposition = [this] {
         m_card->move(visiblePosition(m_card->pos(), m_card->size()));
@@ -155,6 +159,7 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     connect(&m_memory, &MemoryService::cleaned, this, [this](const QString& result) {
         m_status->setText(result);
         appendLog(result);
+        AppFeedback::show(tr("Longniang Toolbox"), result);
         refreshUi();
     });
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
@@ -197,7 +202,16 @@ void ToolboxController::buildHome() {
     auto* layout = new QVBoxLayout(m_home);
     layout->setContentsMargins(28, 22, 28, 22);
     layout->setSpacing(13);
-    label(tr("Longniang Toolbox"), layout)->setObjectName(QStringLiteral("Title"));
+    auto* titleRow = new QHBoxLayout;
+    titleRow->setSpacing(10);
+    auto* avatar = new QLabel;
+    avatar->setObjectName(QStringLiteral("DragonAccent"));
+    avatar->setFixedSize(36, 36);
+    avatar->setPixmap(QPixmap(QStringLiteral(":/toolbox/dragon/avatar.png"))
+                          .scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    titleRow->addWidget(avatar);
+    label(tr("Longniang Toolbox"), titleRow)->setObjectName(QStringLiteral("Title"));
+    layout->addLayout(titleRow);
     auto* tabs = new QTabWidget;
     layout->addWidget(tabs, 1);
     auto* overview = new QWidget;
@@ -430,9 +444,7 @@ void ToolboxController::buildHome() {
                m_status->setText(shortcutError.isEmpty() ? tr("Settings saved and applied")
                                                          : shortcutError);
                appendLog(m_status->text());
-               m_tray.showMessage(tr("Settings"), m_status->text(),
-                                  shortcutError.isEmpty() ? QSystemTrayIcon::Information
-                                                          : QSystemTrayIcon::Warning);
+               AppFeedback::show(tr("Settings"), m_status->text());
            })
         ->setObjectName(QStringLiteral("SaveToolboxSettings"));
     auto* contextRow = new QHBoxLayout;
@@ -555,7 +567,7 @@ void ToolboxController::finishContext() {
         m_status->setText(message);
         appendLog(message);
         if (m_contextWriting)
-            m_tray.showMessage(tr("Codex"), message, QSystemTrayIcon::Warning);
+            AppFeedback::show(tr("Codex"), message);
         return;
     }
     const auto state = result.value(QStringLiteral("state")).toString();
@@ -580,7 +592,7 @@ void ToolboxController::finishContext() {
     if (m_contextWriting) {
         m_status->setText(text.section(QLatin1Char('\n'), 0, 0) + QStringLiteral(" · ") +
                           tr("Saved. Restart the Codex session to apply"));
-        m_tray.showMessage(tr("Codex"), m_status->text(), QSystemTrayIcon::Information);
+        AppFeedback::show(tr("Codex"), m_status->text());
         appendLog(tr("Codex context: %1")
                       .arg(m_contextToggle->isChecked() ? tr("1M context enabled")
                                                         : tr("Using the model default context")));
@@ -628,7 +640,8 @@ void ToolboxController::reportShortcutFailure() {
         tr("The screenshot shortcut could not be registered. Choose another shortcut in Settings");
     m_status->setText(message);
     appendLog(message);
-    m_tray.showMessage(tr("Screenshot shortcut"), message, QSystemTrayIcon::Warning);
+    AppFeedback::notify(&m_tray, tr("Screenshot shortcut"), message,
+                        QSystemTrayIcon::Warning);
 }
 void ToolboxController::presentText(const QString& text) {
     if (m_textWindow)
@@ -774,6 +787,7 @@ void ToolboxController::showCaptureSettings() {
         configureCapture();
         dialog->accept();
         appendLog(tr("Screenshot shortcuts saved"));
+        AppFeedback::show(tr("Settings"), tr("Screenshot shortcuts saved"));
     });
     dialog->show();
 }
