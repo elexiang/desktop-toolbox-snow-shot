@@ -14,10 +14,6 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QMap>
-#include <QApplication>
-#include <QClipboard>
-#include <QRegularExpression>
-#include <QColor>
 #include "../../toolbox/toolboxpaths.h"
 
 #include <utility>
@@ -191,19 +187,7 @@ struct ScreenshotOverlayShortcutController::Impl {
                                toolbox::enabled(QStringLiteral("color")) &&
                                actions.localShortcutInputAllowed();
                     },
-                    [this] {
-                        if (!actions.copyColorPickerColorToClipboard())
-                            return false;
-                        const auto match =
-                            QRegularExpression(QStringLiteral("RGB\\((\\d+), (\\d+), (\\d+)\\)"))
-                                .match(QApplication::clipboard()->text());
-                        if (!match.hasMatch())
-                            return false;
-                        const QColor color(match.captured(1).toInt(), match.captured(2).toInt(),
-                                           match.captured(3).toInt());
-                        QApplication::clipboard()->setText(color.name(QColor::HexRgb).toUpper());
-                        return true;
-                    })));
+                    [this] { return actions.copyColorPickerColorToClipboard(/*forceHex=*/true); })));
         QList<QKeyCombination> selectAllKeys;
         for (const auto& sequence : QKeySequence::keyBindings(QKeySequence::SelectAll))
             selectAllKeys.append(sequence[0]);
@@ -466,10 +450,7 @@ struct ScreenshotOverlayShortcutController::Impl {
                     return actions.toggleGuidesForCurrentSession();
                 }
                 if (actionId == QStringLiteral("copy_color")) {
-                    if (!actions.copyColorPickerColorToClipboard()) {
-                        return false;
-                    }
-                    return true;
+                    return actions.copyColorPickerColorToClipboard(/*forceHex=*/false);
                 }
                 if (actionId == QStringLiteral("cancel_screenshot")) {
                     return inputHandler.cancelEffectDrag() ||

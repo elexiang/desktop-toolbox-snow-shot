@@ -1372,6 +1372,8 @@ class ApplicationController::Impl {
             ensureScreenshotController(), &ScreenshotController::captureActivityChanged,
             toolboxController.get(),
             [this](const QString&, bool active) { toolboxController->captureActivity(active); });
+        QObject::connect(ensureScreenshotController(), &ScreenshotController::clipboardDiagnostic,
+                         toolboxController.get(), &toolbox::ToolboxController::reportClipboardCopy);
         QObject::connect(ensureScreenshotController(), &ScreenshotController::textRecognitionReady,
                          toolboxController.get(), &toolbox::ToolboxController::presentText);
         globalShortcutManager.initialize();

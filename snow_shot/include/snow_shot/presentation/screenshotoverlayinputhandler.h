@@ -77,7 +77,7 @@ struct ScreenshotOverlayInputActions {
         updateGuideLinesForOverlay = [](ScreenshotOverlayWindow*, const QPointF&) {};
     std::function<void(const QPointF& virtualPosition)> updateColorPickerForSelectionDrag =
         [](const QPointF&) {};
-    std::function<bool()> copyColorPickerColorToClipboard = []() { return false; };
+    std::function<bool(bool forceHex)> copyColorPickerColorToClipboard = [](bool) { return false; };
     std::function<bool()> cycleColorPickerFormat = []() { return false; };
     std::function<bool()> toggleColorPickerCoordinateMode = []() { return false; };
     std::function<bool(const QPoint& direction)> moveCursorOnePixel = [](const QPoint&) {

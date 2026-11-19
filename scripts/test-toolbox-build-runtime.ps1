@@ -31,6 +31,29 @@ try {
     $process.Dispose()
 }
 Write-Output 'PASS: memory helper starts without development PATH and rejects invalid input (64)'
+$libraryStart = [Diagnostics.ProcessStartInfo]::new()
+$libraryStart.FileName = $binary
+$libraryStart.Arguments = '--toolbox-library-probe'
+$libraryStart.WorkingDirectory = $env:SystemRoot
+$libraryStart.UseShellExecute = $false
+$libraryStart.CreateNoWindow = $true
+$libraryStart.Environment['PATH'] = "$env:SystemRoot\System32;$env:SystemRoot"
+foreach ($name in @('QT_PLUGIN_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH', 'QTDIR')) {
+    $libraryStart.Environment.Remove($name) | Out-Null
+}
+$libraryProcess = [Diagnostics.Process]::Start($libraryStart)
+try {
+    if (-not $libraryProcess.WaitForExit(15000)) {
+        $libraryProcess.Kill()
+        throw 'Isolated library probe timed out'
+    }
+    if ($libraryProcess.ExitCode -ne 0) {
+        throw "Isolated library persistence probe failed: $($libraryProcess.ExitCode)"
+    }
+} finally {
+    $libraryProcess.Dispose()
+}
+Write-Output 'PASS: SQLite driver, clipboard persistence, notes and backup work without development PATH'
 $runtime = Join-Path (Split-Path $binary -Parent) 'runtime'
 $testRoot = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) ('snow-context-' + [guid]::NewGuid())))
 New-Item -ItemType Directory -Path $testRoot | Out-Null
@@ -57,7 +80,7 @@ try {
                 throw "Context runtime timed out: $action"
             }
             $result = $context.StandardOutput.ReadToEnd() | ConvertFrom-Json
-            if ($context.ExitCode -ne 0 -or $result.error -or -not $result.revision) {
+            if ($context.ExitCode -ne 0 -or ($result.PSObject.Properties['error'] -and $result.error) -or -not $result.revision) {
                 throw "Context runtime failed: $action"
             }
             $expected = if ($action -eq 'on') { '1m' } else { 'default' }

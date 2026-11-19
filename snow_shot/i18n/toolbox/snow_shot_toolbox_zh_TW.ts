@@ -2,6 +2,357 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_TW" sourcelanguage="en_US">
     <context>
+        <name>ToolboxLibrary</name>
+        <message>
+            <source>All categories</source>
+            <translation>所有分類</translation>
+        </message>
+        <message>
+            <source>Back up clipboard and notes</source>
+            <translation>備份剪貼簿和筆記</translation>
+        </message>
+        <message>
+            <source>Back up library…</source>
+            <translation>備份全部資料…</translation>
+        </message>
+        <message>
+            <source>Batch actions</source>
+            <translation>批量處理</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Categories can contain at most 512 characters</source>
+            <translation>分類最多 512 字符</translation>
+        </message>
+        <message>
+            <source>Category (optional)</source>
+            <translation>分類（可選）</translation>
+        </message>
+        <message>
+            <source>Change category</source>
+            <translation>調整分類</translation>
+        </message>
+        <message>
+            <source>Changed the category of %1 notes</source>
+            <translation>已調整 %1 條筆記的分類</translation>
+        </message>
+        <message>
+            <source>Clear clipboard history</source>
+            <translation>清空剪貼簿歷史</translation>
+        </message>
+        <message>
+            <source>Clear clipboard history? Saved notes will be kept.</source>
+            <translation>清空全部剪貼簿歷史？已儲存的筆記會保留</translation>
+        </message>
+        <message>
+            <source>Clear history…</source>
+            <translation>清空歷史…</translation>
+        </message>
+        <message>
+            <source>Clipboard</source>
+            <translation>剪貼簿</translation>
+        </message>
+        <message>
+            <source>Clipboard and notes</source>
+            <translation>剪貼簿與筆記</translation>
+        </message>
+        <message>
+            <source>Clipboard history</source>
+            <translation>剪貼簿歷史</translation>
+        </message>
+        <message>
+            <source>Clipboard history is recorded while the toolbox is running</source>
+            <translation>僅記錄工具箱運行期間的文字和圖片，關閉本窗口后繼續記錄</translation>
+        </message>
+        <message>
+            <source>Clipboard history limits</source>
+            <translation>剪貼簿容量設置</translation>
+        </message>
+        <message>
+            <source>Clipboard history updated</source>
+            <translation>已記錄最新剪貼簿內容</translation>
+        </message>
+        <message>
+            <source>Clipboard history, notes and images backed up</source>
+            <translation>全部剪貼簿記錄、筆記和圖片已備份</translation>
+        </message>
+        <message>
+            <source>Clipboard image</source>
+            <translation>剪貼簿圖片</translation>
+        </message>
+        <message>
+            <source>Copy to clipboard</source>
+            <translation>複製到剪貼簿</translation>
+        </message>
+        <message>
+            <source>Could not commit the library transaction</source>
+            <translation>無法提交資料庫事務</translation>
+        </message>
+        <message>
+            <source>Could not read legacy favorites</source>
+            <translation>無法讀取舊收藏</translation>
+        </message>
+        <message>
+            <source>Could not start the library transaction</source>
+            <translation>無法開始資料庫事務</translation>
+        </message>
+        <message>
+            <source>Create a note or select one from the list</source>
+            <translation>新建筆記，或從左側選擇一篇；資料僅儲存在本機</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>刪除</translation>
+        </message>
+        <message>
+            <source>Delete selected</source>
+            <translation>刪除所選</translation>
+        </message>
+        <message>
+            <source>Deleted</source>
+            <translation>已刪除</translation>
+        </message>
+        <message>
+            <source>Deleted %1</source>
+            <translation>已刪除 %1 條</translation>
+        </message>
+        <message>
+            <source>Done</source>
+            <translation>完成</translation>
+        </message>
+        <message>
+            <source>Editing…</source>
+            <translation>正在編輯…</translation>
+        </message>
+        <message>
+            <source>Export note</source>
+            <translation>導出筆記</translation>
+        </message>
+        <message>
+            <source>Export note…</source>
+            <translation>導出筆記…</translation>
+        </message>
+        <message>
+            <source>History cleared</source>
+            <translation>歷史已清空</translation>
+        </message>
+        <message>
+            <source>History limits saved</source>
+            <translation>容量設置已儲存</translation>
+        </message>
+        <message>
+            <source>History limits…</source>
+            <translation>容量設置…</translation>
+        </message>
+        <message>
+            <source>Image attachment %1 (double-click to preview)</source>
+            <translation>圖片附件 %1（雙擊預覽）</translation>
+        </message>
+        <message>
+            <source>Image items</source>
+            <translation>圖片條數</translation>
+        </message>
+        <message>
+            <source>Library restored. Previous library saved in %1</source>
+            <translation>恢復完成。恢復前資料儲存在：%1</translation>
+        </message>
+        <message>
+            <source>Load more</source>
+            <translation>加載更多</translation>
+        </message>
+        <message>
+            <source>Markdown or text (*.md *.txt)</source>
+            <translation>Markdown 或文本 (*.md *.txt)</translation>
+        </message>
+        <message>
+            <source>More</source>
+            <translation>更多</translation>
+        </message>
+        <message>
+            <source>New note</source>
+            <translation>新建筆記</translation>
+        </message>
+        <message>
+            <source>Note and attachments exported</source>
+            <translation>筆記與圖片附件已導出</translation>
+        </message>
+        <message>
+            <source>Note deleted</source>
+            <translation>已刪除筆記</translation>
+        </message>
+        <message>
+            <source>Note image</source>
+            <translation>筆記圖片</translation>
+        </message>
+        <message>
+            <source>Note limits are 256 characters for the title, 512 for the category and 2 MiB for the body</source>
+            <translation>筆記過長：標題最多 256 字符，分類最多 512 字符，正文最多 2 MiB</translation>
+        </message>
+        <message>
+            <source>Notes</source>
+            <translation>筆記</translation>
+        </message>
+        <message>
+            <source>Old clipboard items are removed at the limit. Saved notes are kept.</source>
+            <translation>達到上限時淘汰最舊的剪貼簿記錄。已儲存的筆記會保留。</translation>
+        </message>
+        <message>
+            <source>Paste</source>
+            <translation>貼上</translation>
+        </message>
+        <message>
+            <source>Paste body</source>
+            <translation>貼上正文</translation>
+        </message>
+        <message>
+            <source>Paste into the input field</source>
+            <translation>貼到輸入框</translation>
+        </message>
+        <message>
+            <source>Pasting would exceed 2 MiB. The note was left unchanged.</source>
+            <translation>貼上后的正文超過 2 MiB，已保留原內容</translation>
+        </message>
+        <message>
+            <source>Permanently delete %1 notes? This cannot be undone.</source>
+            <translation>確定永久刪除 %1 則筆記嗎？此操作無法撤銷。</translation>
+        </message>
+        <message>
+            <source>Permanently delete note</source>
+            <translation>徹底刪除筆記</translation>
+        </message>
+        <message>
+            <source>Permanently delete selected…</source>
+            <translation>永久刪除所選…</translation>
+        </message>
+        <message>
+            <source>Permanently delete this note…</source>
+            <translation>徹底刪除此筆記…</translation>
+        </message>
+        <message>
+            <source>Pin to top</source>
+            <translation>置頂</translation>
+        </message>
+        <message>
+            <source>Preview image</source>
+            <translation>預覽圖片</translation>
+        </message>
+        <message>
+            <source>Record clipboard</source>
+            <translation>記錄剪貼簿</translation>
+        </message>
+        <message>
+            <source>Recycle bin</source>
+            <translation>資源回收筒</translation>
+        </message>
+        <message>
+            <source>Replace current clipboard history and notes with this backup? A copy of the current library will be kept.</source>
+            <translation>將用備份替換當前剪貼簿歷史和全部筆記。恢復前的資料會另外保留一份，是否繼續？</translation>
+        </message>
+        <message>
+            <source>Restore backup…</source>
+            <translation>恢復備份…</translation>
+        </message>
+        <message>
+            <source>Restore library</source>
+            <translation>恢復全部資料</translation>
+        </message>
+        <message>
+            <source>Restore selected</source>
+            <translation>還原所選</translation>
+        </message>
+        <message>
+            <source>Restore this note</source>
+            <translation>恢復此筆記</translation>
+        </message>
+        <message>
+            <source>Restore toolbox library</source>
+            <translation>恢復工具箱資料</translation>
+        </message>
+        <message>
+            <source>Save and apply</source>
+            <translation>儲存并應用</translation>
+        </message>
+        <message>
+            <source>Save as notes</source>
+            <translation>存為筆記</translation>
+        </message>
+        <message>
+            <source>Saved</source>
+            <translation>已儲存</translation>
+        </message>
+        <message>
+            <source>Saved %1 notes</source>
+            <translation>已存為 %1 條筆記</translation>
+        </message>
+        <message>
+            <source>Saved as a note</source>
+            <translation>已存為筆記</translation>
+        </message>
+        <message>
+            <source>Saved · %1</source>
+            <translation>已儲存 · %1</translation>
+        </message>
+        <message>
+            <source>Search clipboard text</source>
+            <translation>搜索歷史文字</translation>
+        </message>
+        <message>
+            <source>Search notes</source>
+            <translation>搜索筆記</translation>
+        </message>
+        <message>
+            <source>Select all</source>
+            <translation>全選</translation>
+        </message>
+        <message>
+            <source>Text items</source>
+            <translation>文字條數</translation>
+        </message>
+        <message>
+            <source>The image file is missing or damaged</source>
+            <translation>圖片檔案缺失或損壞</translation>
+        </message>
+        <message>
+            <source>The note has no body text</source>
+            <translation>筆記正文為空</translation>
+        </message>
+        <message>
+            <source>Title (defaults to the first line)</source>
+            <translation>標題（默認使用正文第一行）</translation>
+        </message>
+        <message>
+            <source>Toolbox library backup (*.sntbackup)</source>
+            <translation>工具箱資料備份 (*.sntbackup)</translation>
+        </message>
+        <message>
+            <source>Toolbox-library-%1.sntbackup</source>
+            <translation>工具箱資料-%1.sntbackup</translation>
+        </message>
+        <message>
+            <source>Total size (MiB)</source>
+            <translation>總容量（MiB）</translation>
+        </message>
+        <message>
+            <source>Type text or paste images. Changes are saved automatically.</source>
+            <translation>輸入正文或貼上圖片，自動儲存</translation>
+        </message>
+        <message>
+            <source>Unpin</source>
+            <translation>取消置頂</translation>
+        </message>
+        <message>
+            <source>Untitled note</source>
+            <translation>未命名筆記</translation>
+        </message>
+        <message>
+            <source>[Image]</source>
+            <translation>[圖片]</translation>
+        </message>
+    </context>
+    <context>
         <name>toolbox::MemoryService</name>
         <message>
             <source>Deep cleanup was not performed. Authorization cancelled or launch failed (%1)</source>
@@ -52,6 +403,81 @@
         </message>
     </context>
     <context>
+        <name>toolbox::QrGeneratorWindow</name>
+        <message>
+            <source>%1 / %2 UTF-8 bytes</source>
+            <translation>%1 / %2 UTF-8 位元組</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>關閉</translation>
+        </message>
+        <message>
+            <source>Copy image</source>
+            <translation>複製圖片</translation>
+        </message>
+        <message>
+            <source>Could not save the QR code image</source>
+            <translation>QR 碼圖片儲存失敗</translation>
+        </message>
+        <message>
+            <source>Enter text or a URL (up to %1 UTF-8 bytes)</source>
+            <translation>輸入文字或網址（最多 %1 個 UTF-8 位元組）</translation>
+        </message>
+        <message>
+            <source>Generate QR code</source>
+            <translation>產生 QR 碼</translation>
+        </message>
+        <message>
+            <source>Generated locally. Input is not saved or uploaded</source>
+            <translation>本機產生，不儲存或上傳輸入內容</translation>
+        </message>
+        <message>
+            <source>Input contains an unsupported null character</source>
+            <translation>輸入內容含有不支援的空字元</translation>
+        </message>
+        <message>
+            <source>Input is too long; shorten it to generate a QR code</source>
+            <translation>輸入內容過長，請縮短後產生 QR 碼</translation>
+        </message>
+        <message>
+            <source>PNG image (*.png)</source>
+            <translation>PNG 圖片 (*.png)</translation>
+        </message>
+        <message>
+            <source>QR code generation failed; try shorter text</source>
+            <translation>QR 碼產生失敗，請嘗試縮短文字</translation>
+        </message>
+        <message>
+            <source>QR code image copied</source>
+            <translation>已複製 QR 碼圖片</translation>
+        </message>
+        <message>
+            <source>QR code image saved</source>
+            <translation>已儲存 QR 碼圖片</translation>
+        </message>
+        <message>
+            <source>QR code preview</source>
+            <translation>QR 碼預覽</translation>
+        </message>
+        <message>
+            <source>Ready · %1 × %2 px</source>
+            <translation>已產生 · %1 × %2 像素</translation>
+        </message>
+        <message>
+            <source>Save PNG…</source>
+            <translation>儲存 PNG…</translation>
+        </message>
+        <message>
+            <source>Save QR code</source>
+            <translation>儲存 QR 碼</translation>
+        </message>
+        <message>
+            <source>Text or URL</source>
+            <translation>文字或網址</translation>
+        </message>
+    </context>
+    <context>
         <name>toolbox::QuotaService</name>
         <message>
             <source>%1 minutes</source>
@@ -98,8 +524,8 @@
             <translation>額度查詢已停止，請檢查 CLI 登錄狀態</translation>
         </message>
         <message>
-            <source>Up to date · refresh every 60 seconds</source>
-            <translation>數據正常 · 每 60 秒刷新</translation>
+            <source>Up to date · refresh every %1 seconds</source>
+            <translation>數據正常 · 每 %1 秒刷新</translation>
         </message>
         <message>
             <source>Weekly</source>
@@ -145,12 +571,16 @@
             <translation>備份：%1</translation>
         </message>
         <message>
-            <source>Browse…</source>
-            <translation>瀏覽…</translation>
+            <source>Before or after selection, press Shift to change the color format, C to copy in that format, or X to copy HEX. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</source>
+            <translation>框選前後均可按 Shift 切換顏色格式，按 C 複製目前格式，按 X 複製 HEX，按 Esc 取消。粗細、顏色和字號可在截圖工具欄調整</translation>
         </message>
         <message>
-            <source>C copies RGB and X copies HEX before or after selection. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</source>
-            <translation>框選前後均可用 C 複製 RGB、X 複製 HEX，Esc 取消。粗細、顏色和字號可在截圖工具欄調整</translation>
+            <source>Blue (default)</source>
+            <translation>藍色（預設）</translation>
+        </message>
+        <message>
+            <source>Browse…</source>
+            <translation>瀏覽…</translation>
         </message>
         <message>
             <source>Capture region</source>
@@ -269,12 +699,28 @@
             <translation>退出</translation>
         </message>
         <message>
+            <source>Fix the capsule beside the Windows taskbar tray. It may overlap taskbar buttons when space is limited</source>
+            <translation>將膠囊固定在 Windows 工作列系統匣左側。空間不足時可能遮擋工作列按鈕</translation>
+        </message>
+        <message>
             <source>Four-row pebble</source>
             <translation>四行鵝卵石</translation>
         </message>
         <message>
+            <source>Generate QR code</source>
+            <translation>產生 QR 碼</translation>
+        </message>
+        <message>
+            <source>Green</source>
+            <translation>綠色</translation>
+        </message>
+        <message>
             <source>Keep logs for</source>
             <translation>日誌保留</translation>
+        </message>
+        <message>
+            <source>Local notes</source>
+            <translation>本機筆記</translation>
         </message>
         <message>
             <source>Local translation complete</source>
@@ -337,6 +783,10 @@
             <translation>打開工具箱</translation>
         </message>
         <message>
+            <source>Orange</source>
+            <translation>橙色</translation>
+        </message>
+        <message>
             <source>Original text → offline translation</source>
             <translation>原文 → 離線譯文</translation>
         </message>
@@ -351,6 +801,10 @@
         <message>
             <source>Pinned images</source>
             <translation>屏幕貼圖</translation>
+        </message>
+        <message>
+            <source>Purple</source>
+            <translation>紫色</translation>
         </message>
         <message>
             <source>QR codes and barcodes</source>
@@ -413,6 +867,10 @@
             <translation>恢復貼圖</translation>
         </message>
         <message>
+            <source>Rose</source>
+            <translation>玫紅色</translation>
+        </message>
+        <message>
             <source>Save and apply</source>
             <translation>保存並應用</translation>
         </message>
@@ -465,6 +923,14 @@
             <translation>系統快取</translation>
         </message>
         <message>
+            <source>Taskbar (left of tray)</source>
+            <translation>工作列（系統匣左側）</translation>
+        </message>
+        <message>
+            <source>Teal</source>
+            <translation>青色</translation>
+        </message>
+        <message>
             <source>Text and translation panel</source>
             <translation>文字與翻譯面板</translation>
         </message>
@@ -483,6 +949,10 @@
         <message>
             <source>The screenshot shortcut could not be registered. Choose another shortcut in Settings</source>
             <translation>截圖快捷鍵註冊失敗，請在設置中改用其他組合鍵</translation>
+        </message>
+        <message>
+            <source>Theme color</source>
+            <translation>主題色</translation>
         </message>
         <message>
             <source>Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit</source>

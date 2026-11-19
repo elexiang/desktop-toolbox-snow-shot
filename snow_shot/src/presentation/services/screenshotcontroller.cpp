@@ -2063,10 +2063,10 @@ void ScreenshotController::Impl::createOverlayInputPipeline() {
         [this](const QPointF& virtualPosition) {
             m_presentationServices->requestSelectionDragColorPickerPresentation(virtualPosition);
         },
-        [this]() {
+        [this](bool forceHex) {
             m_presentationServices->flushColorPickerPresentation();
             return m_colorPickerController->copyColorToClipboard(
-                m_presentationServices->colorPickerContext());
+                m_presentationServices->colorPickerContext(), forceHex);
         },
         [this]() {
             m_presentationServices->flushColorPickerPresentation();
@@ -5700,6 +5700,7 @@ void ScreenshotController::Impl::exportArtifact(
                            std::move(artifact));
         return;
     }
+    emit owner.clipboardDiagnostic(generation, QStringLiteral("requested"), 0, 0);
     if (!output.copyFileToClipboard) {
         copyArtifactToClipboard(std::move(artifact), generation, historySource,
                                 std::move(historyCandidate), scrolling);
@@ -5713,6 +5714,9 @@ void ScreenshotController::Impl::exportArtifact(
                 !receiver->m_impl->imageExportCurrent(generation))
                 return;
             auto& impl = *receiver->m_impl;
+            emit receiver->clipboardDiagnostic(
+                generation, prepared.succeeded() ? QStringLiteral("file.prepared")
+                                                : QStringLiteral("file.prepare_failed"), 0, 0);
             if (!prepared.succeeded()) {
                 if (impl.imageExportNotificationCurrent(generation)) {
                     impl.m_messages->error(
@@ -5729,6 +5733,12 @@ void ScreenshotController::Impl::exportArtifact(
                 QApplication::clipboard(), receiver, std::move(prepared.payload),
                 [receiver, artifact, generation, historySource, historyCandidate,
                  scrolling](ScreenshotClipboardCommitResult commit) mutable {
+                    if (receiver)
+                        emit receiver->clipboardDiagnostic(
+                            generation, commit.superseded ? QStringLiteral("superseded")
+                                        : commit.succeeded() ? QStringLiteral("published")
+                                                             : QStringLiteral("publish_failed"),
+                            commit.attempts, commit.nativeError);
                     if (receiver.isNull() || receiver->m_impl == nullptr ||
                         !receiver->m_impl->imageExportCurrent(generation))
                         return;
@@ -5745,12 +5755,14 @@ void ScreenshotController::Impl::exportArtifact(
                                                          artifact);
                 });
             if (!handle.isValid()) {
+                emit receiver->clipboardDiagnostic(generation, QStringLiteral("commit_rejected"), 0, 0);
                 impl.completeCopyExport(false, generation, historySource, historyCandidate,
                                         scrolling, artifact);
             }
         },
         output.file.pdf, output.file.requestedAt);
     if (!scheduled) {
+        emit owner.clipboardDiagnostic(generation, QStringLiteral("file.queue_rejected"), 0, 0);
         completeCopyExport(false, generation, historySource, historyCandidate, scrolling, artifact);
     }
 }
@@ -5761,6 +5773,7 @@ void ScreenshotController::Impl::copyArtifactToClipboard(
     std::shared_ptr<std::optional<ScreenshotHistoryEntry>> historyCandidate, bool scrolling) {
     const QPointer<ScreenshotController> receiver(&owner);
     if (artifact == nullptr || !artifact->isValid()) {
+        emit owner.clipboardDiagnostic(generation, QStringLiteral("invalid_artifact"), 0, 0);
         completeCopyExport(false, generation, historySource, std::move(historyCandidate), scrolling,
                            std::move(artifact));
         return;
@@ -5772,6 +5785,9 @@ void ScreenshotController::Impl::copyArtifactToClipboard(
                 !receiver->m_impl->imageExportCurrent(generation)) {
                 return;
             }
+            emit receiver->clipboardDiagnostic(
+                generation, result.succeeded() ? QStringLiteral("image.prepared")
+                                              : QStringLiteral("image.prepare_failed"), 0, 0);
             if (!result.succeeded()) {
                 if (receiver->m_impl->imageExportNotificationCurrent(generation)) {
                     receiver->m_impl->m_messages->error(
@@ -5788,6 +5804,12 @@ void ScreenshotController::Impl::copyArtifactToClipboard(
                 QApplication::clipboard(), receiver, std::move(result.payload),
                 [receiver, artifact, generation, historySource, historyCandidate,
                  scrolling](ScreenshotClipboardCommitResult commit) mutable {
+                    if (receiver)
+                        emit receiver->clipboardDiagnostic(
+                            generation, commit.superseded ? QStringLiteral("superseded")
+                                        : commit.succeeded() ? QStringLiteral("published")
+                                                             : QStringLiteral("publish_failed"),
+                            commit.attempts, commit.nativeError);
                     if (receiver.isNull() || receiver->m_impl == nullptr ||
                         !receiver->m_impl->imageExportCurrent(generation)) {
                         return;
@@ -5805,6 +5827,7 @@ void ScreenshotController::Impl::copyArtifactToClipboard(
                                                          artifact);
                 });
             if (!handle.isValid()) {
+                emit receiver->clipboardDiagnostic(generation, QStringLiteral("commit_rejected"), 0, 0);
                 if (receiver->m_impl->imageExportNotificationCurrent(generation)) {
                     receiver->m_impl->m_messages->error(
                         QString::fromLatin1(kCopyMessageKey),
@@ -5817,6 +5840,7 @@ void ScreenshotController::Impl::copyArtifactToClipboard(
             }
         });
     if (!started) {
+        emit owner.clipboardDiagnostic(generation, QStringLiteral("image.queue_rejected"), 0, 0);
         if (imageExportNotificationCurrent(generation)) {
             m_messages->error(QString::fromLatin1(kCopyMessageKey),
                               QCoreApplication::translate(

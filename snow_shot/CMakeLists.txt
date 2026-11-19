@@ -1239,7 +1239,7 @@ if(APPLE)
         "-framework ApplicationServices"
         "-framework AVFoundation")
 endif()
-find_package(Qt6 REQUIRED COMPONENTS Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Concurrent Sql)
 add_library(snow_shot_cloud_upload STATIC
     include/snow_shot/presentation/screenshotclouduploadservice.h
     src/presentation/services/screenshotclouduploadservice.cpp)
@@ -2236,13 +2236,22 @@ qt_add_executable(snow_shot
 target_sources(snow_shot PRIVATE
     src/toolbox/quotaservice.h src/toolbox/quotaservice.cpp
     src/toolbox/memoryservice.h src/toolbox/memoryservice.cpp
-    src/toolbox/toolboxcontroller.h src/toolbox/toolboxcontroller.cpp)
+    src/toolbox/toolboxcontroller.h src/toolbox/toolboxcontroller.cpp
+    src/toolbox/qrgenerator.h src/toolbox/qrgenerator.cpp
+    src/toolbox/locallibrary.h src/toolbox/locallibrary.cpp
+    src/toolbox/librarycategories.h
+    src/toolbox/librarywindows.h src/toolbox/librarywindows.cpp
+    src/toolbox/quickpaste.h src/toolbox/quickpaste.cpp)
 qt_add_resources(snow_shot snow_toolbox_icons PREFIX "/toolbox"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources/toolbox"
     FILES resources/toolbox/reset.svg resources/toolbox/dragon/avatar.png
           resources/toolbox/dragon/app.ico)
-target_link_libraries(snow_shot PRIVATE psapi shell32 advapi32 Qt6::Concurrent)
-set_target_properties(snow_shot PROPERTIES OUTPUT_NAME SnowToolbox)
+target_link_libraries(snow_shot PRIVATE psapi shell32 advapi32 Qt6::Concurrent Qt6::Sql)
+set(SNOW_TOOLBOX_EXECUTABLE_NAME "SnowToolbox" CACHE STRING "Toolbox build-tree executable name")
+if(NOT SNOW_TOOLBOX_EXECUTABLE_NAME MATCHES "^[A-Za-z0-9_-]+$")
+    message(FATAL_ERROR "SNOW_TOOLBOX_EXECUTABLE_NAME must be a plain executable basename")
+endif()
+set_target_properties(snow_shot PROPERTIES OUTPUT_NAME "${SNOW_TOOLBOX_EXECUTABLE_NAME}")
 snow_shot_link_macos_window_platform(snow_shot)
 if(WIN32 AND SNOW_SHOT_DISTRIBUTION_CHANNEL STREQUAL "store")
     add_dependencies(snow_shot snow_shot_explorer_command)
@@ -11451,6 +11460,7 @@ if(WIN32)
         oleaut32
         psapi
         runtimeobject
+        wevtapi
         user32
         userenv
         winmm

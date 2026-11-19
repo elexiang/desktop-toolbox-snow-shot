@@ -26,6 +26,24 @@ int main(int argc, char** argv) {
     QTemporaryDir temporary;
     qputenv("SNOW_TOOLBOX_DATA", temporary.path().toUtf8());
     const auto logPath = temporary.filePath(QStringLiteral("activity.log"));
+    const auto popup = QStringLiteral(
+        R"(<Event><System><EventRecordID>25412</EventRecordID>)"
+        R"(<TimeCreated SystemTime="2026-11-19T02:16:43.646Z"/></System><EventData>)"
+        R"(<Data Name="Caption">Toolbox: SnowToolbox-unified-library-preview.exe - Bad Image</Data>)"
+        R"(<Data Name="Message">C:\PrivateFolder\PublicModulePlusinParam.dll bad image 0xC0000020)"
+        R"( private message</Data></EventData></Event>)");
+    const auto popupLine = toolbox::windowsPopupDiagnostic(popup, QStringLiteral("toolbox.exe"));
+    require(popupLine.contains(QStringLiteral("record=25412")) &&
+                popupLine.contains(QStringLiteral("module=PublicModulePlusinParam.dll code=0xc0000020")) &&
+                !popupLine.contains(QStringLiteral("PrivateFolder")) &&
+                !popupLine.contains(QStringLiteral("private message")),
+            "DLL popup keeps the module basename, Windows record ID and code only");
+    auto unrelated = popup;
+    unrelated.replace(QStringLiteral("SnowToolbox-unified-library-preview.exe"), QStringLiteral("other.exe"));
+    require(toolbox::windowsPopupDiagnostic(unrelated, QStringLiteral("toolbox.exe")).isEmpty(),
+            "Unrelated application popups must not be imported");
+    require(toolbox::windowsPopupDiagnostic(popup.chopped(8), QStringLiteral("toolbox.exe")).isEmpty(),
+            "Malformed Windows records must not produce log entries");
     const auto now = QDateTime::fromString(QStringLiteral("2026-11-16 12:00:00"),
                                            QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     QFile log(logPath);

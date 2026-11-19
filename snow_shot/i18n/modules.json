@@ -160,6 +160,8 @@
     "snow_shot::update::UpdateService"
   ],
   "toolbox": [
+    "ToolboxLibrary",
+    "toolbox::QrGeneratorWindow",
     "toolbox::MemoryService",
     "toolbox::OfflineTranslator",
     "toolbox::QuotaService",

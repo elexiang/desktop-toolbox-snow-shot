@@ -31,6 +31,13 @@ class QuotaCard final : public QWidget {
     bool stacked() const {
         return m_stacked;
     }
+    void setTaskbarHeight(int height) {
+        if (m_taskbarHeight == height)
+            return;
+        m_taskbarHeight = height;
+        setFixedSize(sizeHint());
+        update();
+    }
     QString summary() const {
         if (!m_enabled)
             return m_unavailable;
@@ -41,6 +48,14 @@ class QuotaCard final : public QWidget {
         return lines.join(QStringLiteral("; "));
     }
     QSize sizeHint() const override {
+        const auto ideal = contentSize();
+        const int height =
+            m_taskbarHeight > 0 ? std::min(ideal.height(), m_taskbarHeight) : ideal.height();
+        return {qRound(ideal.width() * double(height) / ideal.height()), height};
+    }
+
+  private:
+    QSize contentSize() const {
         if (!m_enabled)
             return {std::max(150, QFontMetrics(font(10)).horizontalAdvance(m_unavailable) + 28),
                     36};
@@ -56,21 +71,24 @@ class QuotaCard final : public QWidget {
         painter.fillRect(rect(), Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
         painter.setRenderHint(QPainter::Antialiasing);
+        const auto content = contentSize();
+        painter.setWindow(QRect(QPoint(), content));
+        const QRect contentRect(QPoint(), content);
         if (!m_enabled) {
-            surface(painter, rect(), 18);
+            surface(painter, contentRect, 18);
             painter.setPen(QColor(185, 198, 218));
             painter.setFont(font(10));
-            painter.drawText(rect(), Qt::AlignCenter, m_unavailable);
+            painter.drawText(contentRect, Qt::AlignCenter, m_unavailable);
             return;
         }
         if (m_stacked) {
-            surface(painter, rect(), 26);
+            surface(painter, contentRect, 26);
             painter.setPen(QColor(65, 81, 108));
-            painter.drawLine(16, 56, width() - 16, 56);
+            painter.drawLine(16, 56, content.width() - 16, 56);
         } else {
-            surface(painter, rect(), 18);
+            surface(painter, contentRect, 18);
             painter.setPen(QColor(65, 81, 108));
-            painter.drawLine(groupWidth(0), 9, groupWidth(0), height() - 9);
+            painter.drawLine(groupWidth(0), 9, groupWidth(0), content.height() - 9);
         }
         int left = 0;
         for (int i = 0; i < 2; ++i) {
@@ -99,8 +117,8 @@ class QuotaCard final : public QWidget {
             painter.drawText(resetX + 13, baseline, reset(window));
             if (m_stale) {
                 painter.setPen(QColor(239, 184, 91));
-                painter.drawText(m_stacked ? width() - 14 : left + groupWidth(i) - 11, top + 23,
-                                 QStringLiteral("!"));
+                painter.drawText(m_stacked ? content.width() - 14 : left + groupWidth(i) - 11,
+                                 top + 23, QStringLiteral("!"));
             }
             left += groupWidth(i) + 1;
             if (m_stacked)
@@ -150,6 +168,7 @@ class QuotaCard final : public QWidget {
         painter.drawRoundedRect(area.adjusted(.5, .5, -.5, -.5), radius, radius);
     }
     QList<QuotaWindow> m_windows;
+    int m_taskbarHeight = 0;
     QString m_unavailable;
     bool m_stale = true, m_enabled = true, m_stacked = false;
 };

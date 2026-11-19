@@ -202,7 +202,7 @@ void ScreenshotColorPickerController::updateAfterCursorMove(
 }
 
 bool ScreenshotColorPickerController::copyColorToClipboard(
-    const ScreenshotColorPickerContext& context) {
+    const ScreenshotColorPickerContext& context, bool forceHex) {
     if (!enabled(context))
         return false;
     updateAtCurrentCursor(context);
@@ -212,9 +212,9 @@ bool ScreenshotColorPickerController::copyColorToClipboard(
         return false;
     }
 
-    const QColor color = picker->currentColor();
-    QApplication::clipboard()->setText(
-        QStringLiteral("RGB(%1, %2, %3)").arg(color.red()).arg(color.green()).arg(color.blue()));
+    const QString colorText = forceHex ? picker->currentColor().name(QColor::HexRgb).toUpper()
+                                       : picker->currentColorText();
+    QApplication::clipboard()->setText(colorText);
     return true;
 }
 

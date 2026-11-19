@@ -1,7 +1,9 @@
 #include "screenshot_selection_presentation_fixture.h"
+#include "physical_key_test_support.h"
 #include "snow_shot/presentation/screenshotcolorpickercontroller.h"
 #include "snow_shot/presentation/screenshotpresentationframescheduler.h"
 #include "snow_shot/presentation/screenshotoverlayinputhandler.h"
+#include "snow_shot/presentation/screenshotoverlayshortcutcontroller.h"
 #include "snow_shot/presentation/screenshotselectionlimits.h"
 
 #include <QPainter>
@@ -1877,6 +1879,16 @@ void queuedPickerSamplesTheLatestPointBeforeClipboardCommands() {
     for (const auto mode : {ScreenshotColorPickerDisplayMode::AlwaysShow,
                             ScreenshotColorPickerDisplayMode::AlwaysHide}) {
         Fixture fixture(QSize(1200, 800), false);
+        fixture.displays.startup->resumeLiveInput();
+        fixture.physicalCursor = snow_shot::platform::PhysicalCursor({
+            true,
+            [&fixture] {
+                return fixture.geometry.physicalPositionForLogicalPoint(
+                    fixture.displays, fixture.displays.startup->logicalPosition);
+            },
+            [](const QPoint&) { return true; },
+            [&fixture] { return QPointF(fixture.displays.startup->logicalPosition); },
+        });
         fixture.enableColorPicker(mode);
         QPointF latest;
         for (int sample = 0; sample < 16; ++sample) {
@@ -1903,13 +1915,48 @@ void queuedPickerSamplesTheLatestPointBeforeClipboardCommands() {
         latest += QPointF(10, 10);
         fixture.requestMagnifier(latest);
         fixture.services->flushColorPickerPresentation();
-        require(fixture.colorPickerController->cycleFormat(context) &&
-                    fixture.colorPickerController->copyColorToClipboard(context) &&
-                    QApplication::clipboard()->text() == picker->currentColorText(),
-                "format changes must act on the newly sampled point before copying");
-        static_cast<void>(fixture.colorPickerController->cycleFormat(context));
-        static_cast<void>(fixture.colorPickerController->cycleFormat(context));
-        static_cast<void>(fixture.colorPickerController->cycleFormat(context));
+        const QString hex = sampledColor(fixture, latest);
+        const auto color = QColor::fromString(hex);
+        const QString rgb =
+            QStringLiteral("rgb(%1, %2, %3)").arg(color.red()).arg(color.green()).arg(color.blue());
+        const QStringList expectedPrefixes{hex.mid(1), rgb, QStringLiteral("hsl("), hex};
+        auto actions = pickerInputActions(fixture);
+        actions.cycleColorPickerFormat = [&] {
+            fixture.services->flushColorPickerPresentation();
+            return fixture.colorPickerController->cycleFormat(context);
+        };
+        actions.copyColorPickerColorToClipboard = [&](bool forceHex) {
+            fixture.services->flushColorPickerPresentation();
+            return fixture.colorPickerController->copyColorToClipboard(context, forceHex);
+        };
+        ScreenshotOverlayInputHandler input({fixture.captureState, fixture.interaction,
+                                             fixture.selection, fixture.intelligentSelection,
+                                             fixture.geometry, fixture.displays, actions});
+        ScreenshotOverlayShortcutController shortcuts(fixture.shortcuts, input, fixture.interaction,
+                                                      fixture.intelligentSelection, actions);
+        QWidget receiver;
+        fixture.shortcuts.addScopeWindow(&receiver);
+        const auto tap = [&](Qt::Key key) {
+            const auto modifiers = key == Qt::Key_Shift ? Qt::ShiftModifier : Qt::NoModifier;
+            PhysicalKeyEvent press(QEvent::KeyPress, key, modifiers);
+            QCoreApplication::sendEvent(&receiver, &press);
+            PhysicalKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier);
+            QCoreApplication::sendEvent(&receiver, &release);
+        };
+        for (const auto& prefix : expectedPrefixes) {
+            tap(Qt::Key_Shift);
+            QApplication::clipboard()->clear();
+            tap(Qt::Key_C);
+            require(QApplication::clipboard()->text() == picker->currentColorText() &&
+                        picker->currentColorText().startsWith(prefix),
+                    "C must follow every Shift format change for the latest sampled point");
+            const QString displayedColor = picker->currentColorText();
+            QApplication::clipboard()->clear();
+            tap(Qt::Key_X);
+            require(QApplication::clipboard()->text() == hex &&
+                        picker->currentColorText() == displayedColor,
+                    "X must copy fixed HEX and preserve the active picker format");
+        }
         if (mode == ScreenshotColorPickerDisplayMode::AlwaysShow) {
             latest += QPointF(10, 10);
             fixture.requestMagnifier(latest);
@@ -2085,6 +2132,10 @@ int main(int argc, char* argv[]) {
     QApplication application(argc, argv);
     application.setQuitOnLastWindowClosed(false);
     selection_presentation_test::IsolatedStorage storage;
+    if (application.arguments().contains(QStringLiteral("--picker-copy-only"))) {
+        queuedPickerSamplesTheLatestPointBeforeClipboardCommands();
+        return 0;
+    }
     if (application.arguments().contains(QStringLiteral("--picker-drag-only"))) {
         selectionDragsKeepTheColorPickerOpaque();
         return 0;

@@ -2,12 +2,13 @@ cmake_minimum_required(VERSION 3.30)
 project(snow_toolbox_tests LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_AUTOMOC ON)
-find_package(Qt6 6.12 REQUIRED COMPONENTS Core Widgets Network Concurrent)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Core Widgets Network Concurrent Sql)
+find_package(OpenCV REQUIRED COMPONENTS objdetect)
 set(toolbox_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../src/toolbox")
 add_library(toolbox-compile OBJECT
     "${toolbox_dir}/toolboxcontroller.cpp" "${toolbox_dir}/toolboxcontroller.h")
 target_include_directories(toolbox-compile PRIVATE ../../include)
-target_link_libraries(toolbox-compile PRIVATE Qt6::Widgets Qt6::Network Qt6::Concurrent)
+target_link_libraries(toolbox-compile PRIVATE Qt6::Widgets Qt6::Network Qt6::Concurrent Qt6::Sql)
 add_library(translation-patch-compile OBJECT ../../src/app/translationservice.cpp)
 target_include_directories(translation-patch-compile PRIVATE ../../include)
 target_link_libraries(translation-patch-compile PRIVATE Qt6::Widgets Qt6::Network)
@@ -25,13 +26,17 @@ endif()
 enable_testing()
 add_test(NAME snow-toolbox-core-tests COMMAND snow-toolbox-core-tests)
 add_executable(snow-toolbox-ui-render toolbox_ui_render.cpp
+    "${toolbox_dir}/quickpaste.cpp" "${toolbox_dir}/quickpaste.h"
+    "${toolbox_dir}/locallibrary.cpp" "${toolbox_dir}/locallibrary.h"
+    "${toolbox_dir}/librarywindows.cpp" "${toolbox_dir}/librarywindows.h"
+    "${toolbox_dir}/qrgenerator.cpp" "${toolbox_dir}/qrgenerator.h"
     "${toolbox_dir}/toolboxcontroller.cpp" "${toolbox_dir}/toolboxcontroller.h"
     "${toolbox_dir}/quotaservice.cpp" "${toolbox_dir}/quotaservice.h"
     "${toolbox_dir}/memoryservice.cpp" "${toolbox_dir}/memoryservice.h"
     "${toolbox_dir}/offlinetranslator.cpp" "${toolbox_dir}/offlinetranslator.h")
 target_compile_definitions(snow-toolbox-ui-render PRIVATE SNOW_TOOLBOX_TEST_NO_STORAGE)
 target_include_directories(snow-toolbox-ui-render PRIVATE "${toolbox_dir}")
-target_link_libraries(snow-toolbox-ui-render PRIVATE Qt6::Widgets Qt6::Concurrent psapi shell32 advapi32)
+target_link_libraries(snow-toolbox-ui-render PRIVATE Qt6::Widgets Qt6::Concurrent Qt6::Sql opencv_objdetect psapi shell32 advapi32 dwmapi)
 qt_add_resources(snow-toolbox-ui-render toolbox_test_icons PREFIX "/toolbox"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/toolbox"
     FILES ../../resources/toolbox/reset.svg ../../resources/toolbox/dragon/avatar.png
@@ -46,3 +51,39 @@ target_link_libraries(snow-toolbox-feedback-tests PRIVATE Qt6::Widgets)
 add_test(NAME snow-toolbox-feedback-tests COMMAND snow-toolbox-feedback-tests)
 set_tests_properties(snow-toolbox-feedback-tests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+
+add_executable(snow-toolbox-qr-generator-tests qr_generator_tests.cpp
+    "${toolbox_dir}/qrgenerator.cpp" "${toolbox_dir}/qrgenerator.h")
+target_include_directories(snow-toolbox-qr-generator-tests PRIVATE "${toolbox_dir}")
+target_link_libraries(snow-toolbox-qr-generator-tests PRIVATE Qt6::Widgets opencv_objdetect)
+add_test(NAME snow-toolbox-qr-generator-tests COMMAND snow-toolbox-qr-generator-tests)
+set_tests_properties(snow-toolbox-qr-generator-tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+
+add_executable(snow-toolbox-library-tests library_tests.cpp
+    "${toolbox_dir}/locallibrary.cpp" "${toolbox_dir}/locallibrary.h"
+    "${toolbox_dir}/librarywindows.cpp" "${toolbox_dir}/librarywindows.h")
+target_include_directories(snow-toolbox-library-tests PRIVATE "${toolbox_dir}")
+target_link_libraries(snow-toolbox-library-tests PRIVATE Qt6::Widgets Qt6::Sql)
+add_test(NAME snow-toolbox-library-tests COMMAND snow-toolbox-library-tests)
+set_tests_properties(snow-toolbox-library-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
+add_executable(snow-toolbox-quickpaste-tests quickpaste_tests.cpp
+    "${toolbox_dir}/quickpaste.cpp" "${toolbox_dir}/quickpaste.h"
+    "${toolbox_dir}/librarywindows.cpp" "${toolbox_dir}/librarywindows.h"
+    "${toolbox_dir}/locallibrary.cpp" "${toolbox_dir}/locallibrary.h")
+target_include_directories(snow-toolbox-quickpaste-tests PRIVATE "${toolbox_dir}")
+target_link_libraries(snow-toolbox-quickpaste-tests PRIVATE Qt6::Widgets Qt6::Sql)
+if(WIN32)
+    target_link_libraries(snow-toolbox-quickpaste-tests PRIVATE user32 ole32)
+    target_link_libraries(snow-toolbox-ui-render PRIVATE ole32 wevtapi)
+endif()
+add_test(NAME snow-toolbox-quickpaste-tests COMMAND snow-toolbox-quickpaste-tests)
+set_tests_properties(snow-toolbox-quickpaste-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+foreach(target snow-toolbox-library-tests snow-toolbox-ui-render snow-toolbox-quickpaste-tests)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target}>/sqldrivers"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "$<TARGET_FILE_DIR:${target}>/sqldrivers/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE_DIR:${target}>/")
+endforeach()

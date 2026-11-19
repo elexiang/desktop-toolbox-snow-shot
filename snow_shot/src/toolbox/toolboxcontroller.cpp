@@ -4,6 +4,10 @@
 #include "activitylog.h"
 #include "appfeedback.h"
 #include "offlinetranslator.h"
+#include "taskbardock.h"
+#include "qrgenerator.h"
+#include "librarywindows.h"
+#include "quickpaste.h"
 #ifndef SNOW_TOOLBOX_TEST_NO_STORAGE
 #include "snow_shot/storage/applicationstorage.h"
 #include "snow_shot/storage/configurationstore.h"
@@ -13,9 +17,27 @@
 #include <QTranslator>
 #include <QJsonArray>
 #include <algorithm>
+#include <optional>
+#include <vector>
+#ifdef Q_OS_WIN
+#include <winevt.h>
+#endif
 
 namespace toolbox {
 namespace {
+constexpr QSize homeMinimumSize(820, 360);
+
+QString themeColor() {
+    const auto key = QSettings(settingsPath(), QSettings::IniFormat)
+                         .value(QStringLiteral("themeColor"), QStringLiteral("blue")).toString();
+    const QMap<QString, QString> colors{{QStringLiteral("blue"), QStringLiteral("#3976e9")},
+                                       {QStringLiteral("teal"), QStringLiteral("#087f8c")},
+                                       {QStringLiteral("green"), QStringLiteral("#258049")},
+                                       {QStringLiteral("purple"), QStringLiteral("#8052cd")},
+                                       {QStringLiteral("rose"), QStringLiteral("#be3970")},
+                                       {QStringLiteral("orange"), QStringLiteral("#b85c12")}};
+    return colors.value(key, QStringLiteral("#3976e9"));
+}
 QString style() {
     return QStringLiteral(
         "QWidget{font-family:'Microsoft YaHei UI';font-size:10pt;color:#263342;}"
@@ -26,18 +48,26 @@ QString style() {
         "QLabel#Title{font-size:23pt;font-weight:600;color:#142234;}"
         "QPushButton{border:1px solid #d8dfea;border-radius:7px;padding:6px "
         "12px;background:#fff;color:#334155;}"
-        "QPushButton:hover{background:#edf3ff;border-color:#93b5f5;} "
+        "QPushButton:hover{background:%2;border-color:%1;} "
         "QPushButton:disabled{color:#96a0b0;background:#edf0f5;}"
         "QTabWidget::pane{border:0;} QTabBar::tab{padding:10px 24px;border:0;color:#778396;}"
-        "QTabBar::tab:selected{color:#2563cb;border-bottom:2px solid #3976e9;}"
+        "QTabBar::tab:selected{color:%1;border-bottom:2px solid %1;}"
+        "QTabBar#NoteCategories::tab,QTabBar#QuickCategories::tab{padding:6px 14px;}"
+        "QToolButton#ClipboardOptions,QToolButton#NoteOptions{border:1px solid #d8dfea;"
+        "border-radius:7px;padding:6px 10px;background:#fff;color:#334155;}"
+        "QToolButton#ClipboardOptions:hover,QToolButton#NoteOptions:hover{border-color:%1;}"
+        "QToolButton#ClipboardOptions::menu-indicator,QToolButton#NoteOptions::menu-indicator"
+        "{image:none;}"
         "QCheckBox{spacing:8px;padding:7px 0;} "
-        "QLineEdit,QKeySequenceEdit{background:white;border:1px solid "
+        "QLineEdit,QKeySequenceEdit,QComboBox{background:white;border:1px solid "
         "#d8dfea;border-radius:6px;padding:7px;}"
         "QGroupBox{border:1px solid #dce2eb;border-radius:9px;margin-top:14px;padding:16px 12px "
         "10px;}"
         "QGroupBox::title{subcontrol-origin:margin;left:12px;padding:0 5px;} "
         "QMenu{background:white;padding:6px;} QMenu::item{padding:8px 20px;} "
-        "QMenu::item:selected{background:#edf3ff;}");
+        "QMenu::item:selected{background:%2;}"
+        "QLineEdit:focus,QKeySequenceEdit:focus,QComboBox:focus{border-color:%1;}")
+        .arg(themeColor(), QColor(themeColor()).lighter(185).name());
 }
 QLabel* label(const QString& text, QBoxLayout* layout) {
     auto* result = new QLabel(text);
@@ -68,6 +98,27 @@ QPoint visiblePosition(QPoint position, QSize size) {
             std::clamp(position.y(), area.top(),
                        std::max(area.top(), area.bottom() - size.height() + 1))};
 }
+
+class ToolboxHome final : public QWidget {
+#ifdef Q_OS_WIN
+  protected:
+    bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override {
+        const auto* event = static_cast<const MSG*>(message);
+        if (event->message == WM_ENTERSIZEMOVE)
+            m_moveStart = pos();
+        if (event->message == WM_EXITSIZEMOVE) {
+            if (m_moveStart && pos() != *m_moveStart && !isMaximized() && !isMinimized())
+                QSettings(settingsPath(), QSettings::IniFormat)
+                    .setValue(QStringLiteral("homePosition"), pos());
+            m_moveStart.reset();
+        }
+        return QWidget::nativeEvent(eventType, message, result);
+    }
+
+  private:
+    std::optional<QPoint> m_moveStart;
+#endif
+};
 } // namespace
 ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     : QObject(parent), m_actions(std::move(actions)), m_quota(this), m_memory(this) {
@@ -75,6 +126,19 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/toolbox/dragon/app.ico")));
     qApp->setQuitOnLastWindowClosed(false);
     qApp->installEventFilter(this);
+    m_library = new LocalLibrary(dataPath() + QStringLiteral("/library"), this);
+    m_clipboardTracker = new ClipboardTracker(m_library, this);
+    connect(m_clipboardTracker, &ClipboardTracker::captureDiagnostic, this,
+            [this](const QString& stage) {
+                appendLog(QStringLiteral("[clipboard.history] pid=%1 stage=%2")
+                              .arg(QCoreApplication::applicationPid()).arg(stage));
+            });
+    m_quickPaste = new QuickPaste(this);
+    connect(m_quickPaste, &QuickPaste::requested, this, &ToolboxController::showQuickPicker);
+    connect(m_quickPaste, &QuickPaste::finished, this, [this](bool sent, const QString& message) {
+        if (!sent)
+            AppFeedback::show(QStringLiteral("快速粘贴"), message);
+    });
     buildHome();
     m_menu.setStyleSheet(style());
     m_menu.addAction(tr("Open toolbox"), this, &ToolboxController::showHome);
@@ -84,9 +148,15 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
             m_actions.restorePins();
     });
     m_menu.addAction(tr("Refresh quota"), &m_quota, &QuotaService::refresh);
+    m_menu.addAction(QStringLiteral("快速剪贴板"), this, [this] { showQuickPicker(false); })
+        ->setProperty("requiresModule", QStringLiteral("clipboardHistory"));
+    m_menu.addAction(QStringLiteral("快速笔记"), this, [this] { showQuickPicker(true); })
+        ->setProperty("requiresModule", QStringLiteral("localNotes"));
     m_menu.addSeparator();
     m_menu.addAction(tr("Quit toolbox"), qApp, &QApplication::quit);
     m_tray.setIcon(QApplication::windowIcon());
+    m_tray.setParent(this);
+    m_tray.setObjectName(QStringLiteral("ToolboxTray"));
     m_tray.setToolTip(tr("Longniang Toolbox"));
     m_tray.setContextMenu(&m_menu);
     m_tray.show();
@@ -106,6 +176,8 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
         settings.value(QStringLiteral("cardPosition"), area.bottomRight() - QPoint(285, 210))
             .toPoint(),
         m_card->size()));
+    m_taskbarDocked =
+        settings.value(QStringLiteral("cardStyle")).toString() == QStringLiteral("taskbar");
     m_detail = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     m_detail->setObjectName(QStringLiteral("QuotaDetail"));
     m_detail->setStyleSheet(style());
@@ -123,17 +195,22 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
     auto* deep = button(tr("Deep cleanup…"), cleanup, [this] { clean(true); });
     deep->setObjectName(QStringLiteral("CleanupButton"));
     auto* openToolbox = button(tr("Open toolbox"), detailLayout, [this] { showHome(); });
+    openToolbox->setObjectName(QStringLiteral("OpenToolbox"));
     openToolbox->setIcon(QIcon(QStringLiteral(":/toolbox/dragon/app.ico")));
     openToolbox->setIconSize(QSize(22, 22));
-    m_detailStatus = label({}, detailLayout);
     const auto reposition = [this] {
-        m_card->move(visiblePosition(m_card->pos(), m_card->size()));
+        positionCard();
         m_detail->hide();
     };
     for (auto* screen : QGuiApplication::screens())
         connect(screen, &QScreen::availableGeometryChanged, this, reposition);
     connect(qApp, &QGuiApplication::screenAdded, this, reposition);
     connect(qApp, &QGuiApplication::screenRemoved, this, reposition);
+    m_taskbarTracking.setInterval(750);
+    m_taskbarTracking.setParent(this);
+    m_taskbarTracking.setObjectName(QStringLiteral("TaskbarTracking"));
+    m_taskbarEvents = new TaskbarEvents(this, [this] { positionCard(); });
+    connect(&m_taskbarTracking, &QTimer::timeout, this, &ToolboxController::positionCard);
     m_hover.setSingleShot(true);
     m_hover.setInterval(300);
     connect(&m_hover, &QTimer::timeout, this, &ToolboxController::showDetail);
@@ -163,23 +240,40 @@ ToolboxController::ToolboxController(ToolboxActions actions, QObject* parent)
         refreshUi();
     });
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-        QSettings(settingsPath(), QSettings::IniFormat)
-            .setValue(QStringLiteral("cardPosition"), m_card->pos());
+        if (!m_taskbarDocked)
+            QSettings(settingsPath(), QSettings::IniFormat)
+                .setValue(QStringLiteral("cardPosition"), m_card->pos());
         m_quota.shutdown();
         OfflineTranslator::instance().stop();
     });
-    applySettings(false);
+    const auto startupError = applySettings(false);
+    if (!startupError.isEmpty()) {
+        appendLog(startupError);
+        QTimer::singleShot(0, this, [startupError] { AppFeedback::show(QStringLiteral("快捷键设置"), startupError); });
+    }
     cleanupLogs();
     m_logCleanup.setInterval(60 * 60 * 1000);
     connect(&m_logCleanup, &QTimer::timeout, this, &ToolboxController::cleanupLogs);
     m_logCleanup.start();
     appendLog(tr("Toolbox started"));
+#ifdef Q_OS_WIN
+#ifdef SNOW_TOOLBOX_TEST_NO_STORAGE
+    if (qEnvironmentVariableIsSet("SNOW_TOOLBOX_TEST_POPUP_RECORD"))
+#endif
+    {
+        m_popupPoll.setInterval(30000);
+        connect(&m_popupPoll, &QTimer::timeout, this, &ToolboxController::pollWindowsPopups);
+        m_popupPoll.start();
+        QTimer::singleShot(0, this, &ToolboxController::pollWindowsPopups);
+    }
+#endif
     if (!settings.value(QStringLiteral("hasStarted"), false).toBool()) {
         settings.setValue(QStringLiteral("hasStarted"), true);
         QTimer::singleShot(0, this, &ToolboxController::showHome);
     }
 }
 ToolboxController::~ToolboxController() {
+    m_taskbarEvents->setEnabled(false);
     setShortcutEditing(false);
     if (m_contextProcess.state() != QProcess::NotRunning) {
         if (!m_contextProcess.waitForFinished(1000)) {
@@ -188,15 +282,60 @@ ToolboxController::~ToolboxController() {
         }
     }
     delete m_detail;
+    delete m_qrWindow;
+    delete m_libraryWindow;
     delete m_card;
     delete m_home;
 }
+void ToolboxController::showLibrary(bool notes) {
+    if (!enabled(notes ? QStringLiteral("localNotes") : QStringLiteral("clipboardHistory")) ||
+        m_capture || m_quickPaste->busy())
+        return;
+    if (!m_libraryWindow || !m_libraryWindow->isVisible() || !m_libraryWindow->isActiveWindow())
+        m_quickPaste->rememberTarget();
+    if (!m_libraryWindow) {
+        m_libraryWindow = new LibraryWindow(m_library, m_clipboardTracker, m_home);
+        m_libraryWindow->setFeatures(enabled(QStringLiteral("clipboardHistory")),
+                                     enabled(QStringLiteral("localNotes")));
+        m_libraryWindow->setStyleSheet(style());
+        connect(m_libraryWindow, &LibraryWindow::pasteRequested, this,
+                [this](const QString& text, const QImage& image, const QString& html) {
+                    if (m_libraryWindow->notes()->flush())
+                        m_quickPaste->paste(text, image, m_libraryWindow, html);
+                });
+        connect(m_libraryWindow, &LibraryWindow::canceled, this,
+                [this] { m_quickPaste->cancel(m_libraryWindow); });
+    }
+    m_libraryWindow->selectPage(notes);
+    if (m_libraryWindow->isMinimized())
+        m_libraryWindow->setWindowState(m_libraryWindow->windowState() & ~Qt::WindowMinimized);
+    m_libraryWindow->show();
+    m_libraryWindow->raise();
+    m_libraryWindow->activateWindow();
+}
+void ToolboxController::showNotes() {
+    showLibrary(true);
+}
+void ToolboxController::showClipboard() {
+    showLibrary(false);
+}
+void ToolboxController::showQuickPicker(bool notes) {
+    if (m_capture || m_quickPaste->busy())
+        return;
+    if (m_libraryWindow && m_libraryWindow->isVisible() && !m_libraryWindow->isMinimized() &&
+        m_libraryWindow->isActiveWindow() && m_libraryWindow->notesMode() == notes) {
+        if (m_libraryWindow->notes()->flush())
+            m_quickPaste->cancel(m_libraryWindow);
+        return;
+    }
+    showLibrary(notes);
+}
 void ToolboxController::buildHome() {
-    m_home = new QWidget;
+    m_home = new ToolboxHome;
     m_home->setObjectName(QStringLiteral("ToolboxHome"));
     m_home->setWindowTitle(tr("Longniang Toolbox"));
-    m_home->resize(900, 820);
-    m_home->setMinimumSize(820, 660);
+    m_home->resize(900, 660);
+    m_home->setMinimumSize(homeMinimumSize);
     m_home->setStyleSheet(style());
     m_home->installEventFilter(this);
     auto* layout = new QVBoxLayout(m_home);
@@ -274,6 +413,23 @@ void ToolboxController::buildHome() {
         } else
             presentText({});
     });
+    auto* qrButton = button(tr("Generate QR code"), captureRow, [this] {
+        if (!m_qrWindow) {
+            m_qrWindow = new QrGeneratorWindow(m_home);
+            m_qrWindow->setStyleSheet(style());
+        }
+        m_qrWindow->show();
+        m_qrWindow->raise();
+        m_qrWindow->activateWindow();
+    });
+    qrButton->setObjectName(QStringLiteral("OpenQrGenerator"));
+    qrButton->setProperty("requiresModule", QStringLiteral("qrGenerator"));
+    auto* clipboardButton = button(QStringLiteral("剪贴板历史"), captureRow, [this] { showClipboard(); });
+    clipboardButton->setObjectName(QStringLiteral("OpenClipboardHistory"));
+    clipboardButton->setProperty("requiresModule", QStringLiteral("clipboardHistory"));
+    auto* notesButton = button(tr("Local notes"), captureRow, [this] { showNotes(); });
+    notesButton->setObjectName(QStringLiteral("OpenLocalNotes"));
+    notesButton->setProperty("requiresModule", QStringLiteral("localNotes"));
     for (int i = 0; i < captureRow->count(); ++i)
         captureRow->itemAt(i)->widget()->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     captureRow->addStretch();
@@ -335,10 +491,22 @@ void ToolboxController::buildHome() {
     settingsScroll->setWidget(settingsPage);
     settingsLayout->setSizeConstraint(QLayout::SetMinimumSize);
     tabs->addTab(settingsScroll, tr("Settings"));
+    auto* startupRow = new QHBoxLayout;
+    settingsLayout->addLayout(startupRow);
     auto* autoStart = new QCheckBox(tr("Start with Windows"));
     autoStart->setObjectName(QStringLiteral("ToolboxAutoStart"));
     autoStart->setChecked(m_actions.autoStartEnabled());
-    settingsLayout->addWidget(autoStart);
+    startupRow->addWidget(autoStart);
+    auto* clipboardRecording = new QCheckBox(QStringLiteral("记录剪贴板文字和图片（本地持久化）"));
+    clipboardRecording->setObjectName(QStringLiteral("ClipboardRecordingSetting"));
+    clipboardRecording->setChecked(m_clipboardTracker->recording());
+    connect(clipboardRecording, &QCheckBox::toggled, m_clipboardTracker, &ClipboardTracker::setRecording);
+    connect(m_clipboardTracker, &ClipboardTracker::stateChanged, clipboardRecording, [this, clipboardRecording] {
+        const QSignalBlocker blocker(clipboardRecording);
+        clipboardRecording->setChecked(m_clipboardTracker->recording());
+    });
+    startupRow->addWidget(clipboardRecording);
+    startupRow->addStretch();
     auto* modules = new QGroupBox(tr("Enabled features"));
     auto* moduleGrid = new QGridLayout(modules);
     settingsLayout->addWidget(modules);
@@ -353,33 +521,66 @@ void ToolboxController::buildHome() {
         {QStringLiteral("barcode"), tr("QR codes and barcodes")},
         {QStringLiteral("translation"), tr("Offline translation")},
         {QStringLiteral("memory"), tr("Memory information")},
-        {QStringLiteral("cleanup"), tr("Memory cleanup")}};
+        {QStringLiteral("cleanup"), tr("Memory cleanup")},
+        {QStringLiteral("clipboardHistory"),
+         QCoreApplication::translate("ToolboxLibrary", "Clipboard history")},
+        {QStringLiteral("localNotes"), tr("Local notes")},
+        {QStringLiteral("qrGenerator"), tr("Generate QR code")}};
     QSettings settings(settingsPath(), QSettings::IniFormat);
+    constexpr int moduleColumns = 4;
+    for (int column = 0; column < moduleColumns; ++column)
+        moduleGrid->setColumnStretch(column, 1);
     int index = 0;
-    QList<QCheckBox*> checks;
+    QHash<QString, QCheckBox*> checks;
     for (const auto& item : names) {
         auto* check = new QCheckBox(item.second);
         check->setProperty("module", item.first);
         check->setChecked(enabled(item.first));
-        moduleGrid->addWidget(check, index / 2, index % 2);
+        moduleGrid->addWidget(check, index / moduleColumns, index % moduleColumns);
         ++index;
-        checks.append(check);
+        checks.insert(item.first, check);
     }
     auto* form = new QFormLayout;
     settingsLayout->addLayout(form);
+    auto* theme = new QComboBox;
+    theme->setObjectName(QStringLiteral("ToolboxThemeColor"));
+    theme->setFixedWidth(220);
+    const QList<QPair<QString, QString>> themes{
+        {QStringLiteral("blue"), tr("Blue (default)")},
+        {QStringLiteral("teal"), tr("Teal")},
+        {QStringLiteral("green"), tr("Green")},
+        {QStringLiteral("purple"), tr("Purple")},
+        {QStringLiteral("rose"), tr("Rose")},
+        {QStringLiteral("orange"), tr("Orange")}};
+    for (const auto& entry : themes) {
+        theme->addItem(entry.second, entry.first);
+    }
+    theme->setCurrentIndex(std::max(0, theme->findData(
+        settings.value(QStringLiteral("themeColor"), QStringLiteral("blue")))));
+    form->addRow(tr("Theme color"), theme);
+    connect(theme, &QComboBox::currentIndexChanged, this, [this, theme] {
+        QSettings(settingsPath(), QSettings::IniFormat)
+            .setValue(QStringLiteral("themeColor"), theme->currentData());
+        applyTheme();
+    });
     auto* key = new QKeySequenceEdit(
         QKeySequence(settings.value(QStringLiteral("captureShortcut"), QStringLiteral("Ctrl+Alt+1"))
                          .toString()));
     key->setMaximumSequenceLength(1);
     key->setFixedWidth(220);
-    connect(qApp, &QApplication::focusChanged, key, [this, key](QWidget*, QWidget* focused) {
-        setShortcutEditing(focused && (focused == key || key->isAncestorOf(focused)));
+    connect(qApp, &QApplication::focusChanged, key, [this](QWidget*, QWidget* focused) {
+        bool editing = false;
+        for (auto* editor : m_home->findChildren<QKeySequenceEdit*>())
+            editing |= focused && (focused == editor || editor->isAncestorOf(focused));
+        setShortcutEditing(editing);
     });
     connect(qApp, &QGuiApplication::applicationStateChanged, key,
-            [this, key](Qt::ApplicationState state) {
+            [this](Qt::ApplicationState state) {
                 auto* focused = QApplication::focusWidget();
-                setShortcutEditing(state == Qt::ApplicationActive && focused &&
-                                   (focused == key || key->isAncestorOf(focused)));
+                bool editing = false;
+                for (auto* editor : m_home->findChildren<QKeySequenceEdit*>())
+                    editing |= focused && (focused == editor || editor->isAncestorOf(focused));
+                setShortcutEditing(state == Qt::ApplicationActive && editing);
             });
     auto* shortcutRow = new QHBoxLayout;
     shortcutRow->addWidget(key);
@@ -389,20 +590,48 @@ void ToolboxController::buildHome() {
     shortcutRow->addStretch();
     key->setObjectName(QStringLiteral("CaptureShortcut"));
     form->addRow(tr("Screenshot shortcut"), shortcutRow);
+    auto* quickClipboard = new QKeySequenceEdit(QKeySequence(settings.value(QStringLiteral("quickClipboardShortcut"), QStringLiteral("Ctrl+Alt+V")).toString()));
+    auto* quickNotes = new QKeySequenceEdit(QKeySequence(settings.value(QStringLiteral("quickNotesShortcut"), QStringLiteral("Ctrl+Alt+N")).toString()));
+    quickClipboard->setObjectName(QStringLiteral("QuickClipboardShortcut"));
+    quickNotes->setObjectName(QStringLiteral("QuickNotesShortcut"));
+    for (auto* editor : {quickClipboard, quickNotes}) {
+        editor->setMaximumSequenceLength(1);
+        editor->setFixedWidth(220);
+        editor->setToolTip(QStringLiteral("在原输入框内按此快捷键呼出，搜索后回车粘贴；清空可禁用该快捷键"));
+    }
+    auto* quickRow = new QHBoxLayout;
+    quickRow->addWidget(quickClipboard);
+    auto* quickNotesLabel = new QLabel(QStringLiteral("快速笔记"));
+    quickNotesLabel->setBuddy(quickNotes);
+    quickRow->addSpacing(12);
+    quickRow->addWidget(quickNotesLabel);
+    quickRow->addWidget(quickNotes);
+    quickRow->addStretch();
+    form->addRow(QStringLiteral("快速剪贴板"), quickRow);
     auto* cardStyle = new QButtonGroup(settingsPage);
     cardStyle->setObjectName(QStringLiteral("QuotaCardStyle"));
     auto* styleRow = new QHBoxLayout;
     auto* compactStyle = new QRadioButton(tr("Compact capsule"));
     auto* stackedStyle = new QRadioButton(tr("Four-row pebble"));
+    auto* taskbarStyle = new QRadioButton(tr("Taskbar (left of tray)"));
+    taskbarStyle->setToolTip(tr("Fix the capsule beside the Windows taskbar tray. It may overlap "
+                                "taskbar buttons when space is limited"));
+#ifndef Q_OS_WIN
+    taskbarStyle->setEnabled(false);
+#endif
     cardStyle->addButton(compactStyle, 0);
     cardStyle->addButton(stackedStyle, 1);
+    cardStyle->addButton(taskbarStyle, 2);
     styleRow->addWidget(compactStyle);
     styleRow->addWidget(stackedStyle);
+    styleRow->addWidget(taskbarStyle);
     styleRow->addStretch();
-    const bool stacked =
-        settings.value(QStringLiteral("cardStyle")).toString() == QStringLiteral("stacked");
-    compactStyle->setChecked(!stacked);
-    stackedStyle->setChecked(stacked);
+    const auto selectedStyle = settings.value(QStringLiteral("cardStyle")).toString();
+    cardStyle
+        ->button(selectedStyle == QStringLiteral("taskbar")   ? 2
+                 : selectedStyle == QStringLiteral("stacked") ? 1
+                                                              : 0)
+        ->setChecked(true);
     form->addRow(tr("Desktop card style"), styleRow);
     auto* codexRow = new QHBoxLayout;
     auto* executable = new QLineEdit(
@@ -419,9 +648,16 @@ void ToolboxController::buildHome() {
              "background activity. Translation may use internal OCR when the OCR button is hidden"),
           settingsLayout);
     button(tr("Save and apply"), settingsLayout,
-           [this, checks, key, executable, cardStyle, autoStart] {
-               key->clearFocus();
+           [this, checks, key, quickClipboard, quickNotes, executable, cardStyle, autoStart] {
+               for (auto* editor : {key, quickClipboard, quickNotes})
+                   editor->clearFocus();
                setShortcutEditing(false);
+               const bool clipboardEnabled = checks.value(QStringLiteral("clipboardHistory"))->isChecked();
+               const bool notesEnabled = checks.value(QStringLiteral("localNotes"))->isChecked();
+               if (!notesEnabled && m_libraryWindow && !m_libraryWindow->notes()->flush()) {
+                   showNotes();
+                   return;
+               }
                const auto error = m_actions.setAutoStart(autoStart->isChecked());
                if (!error.isEmpty()) {
                    autoStart->setChecked(m_actions.autoStartEnabled());
@@ -429,14 +665,26 @@ void ToolboxController::buildHome() {
                    QMessageBox::warning(m_home, tr("Start with Windows"), error);
                    return;
                }
+               if (QGuiApplication::platformName() == QStringLiteral("windows")) {
+                   const auto quickError = m_quickPaste->configure(
+                       clipboardEnabled ? quickClipboard->keySequence() : QKeySequence{},
+                       notesEnabled ? quickNotes->keySequence() : QKeySequence{});
+                   if (!quickError.isEmpty()) {
+                       QMessageBox::warning(m_home, QStringLiteral("快速呼出快捷键"), quickError);
+                       return;
+                   }
+               }
                QSettings values(settingsPath(), QSettings::IniFormat);
-               values.setValue(QStringLiteral("cardStyle"), cardStyle->checkedId() == 1
-                                                                ? QStringLiteral("stacked")
-                                                                : QStringLiteral("compact"));
-               for (auto* check : checks)
-                   values.setValue(check->property("module").toString(), check->isChecked());
+               values.setValue(QStringLiteral("cardStyle"),
+                               cardStyle->checkedId() == 2   ? QStringLiteral("taskbar")
+                               : cardStyle->checkedId() == 1 ? QStringLiteral("stacked")
+                                                             : QStringLiteral("compact"));
+               for (auto it = checks.cbegin(); it != checks.cend(); ++it)
+                   values.setValue(it.key(), it.value()->isChecked());
                values.setValue(QStringLiteral("captureShortcut"),
                                key->keySequence().toString(QKeySequence::PortableText));
+               values.setValue(QStringLiteral("quickClipboardShortcut"), quickClipboard->keySequence().toString(QKeySequence::PortableText));
+               values.setValue(QStringLiteral("quickNotesShortcut"), quickNotes->keySequence().toString(QKeySequence::PortableText));
                values.setValue(QStringLiteral("codexExecutable"), executable->text().trimmed());
                values.sync();
                m_actions.cancelCapture();
@@ -485,8 +733,8 @@ void ToolboxController::buildHome() {
         if (index == 0)
             runContext(QStringLiteral("read"));
     });
-    body->addStretch();
-    settingsLayout->addStretch();
+    body->setAlignment(Qt::AlignTop);
+    settingsLayout->setAlignment(Qt::AlignTop);
 }
 void ToolboxController::appendLog(const QString& message) {
     if (message.isEmpty())
@@ -511,6 +759,68 @@ void ToolboxController::appendLog(const QString& message) {
     if (m_log)
         m_log->setPlainText(recentActivity(path));
 }
+void ToolboxController::reportClipboardCopy(quint64 generation, const QString& stage, int attempts,
+                                            quint32 code) {
+    appendLog(QStringLiteral("[screenshot.clipboard] pid=%1 operation=%2 stage=%3 attempts=%4 code=0x%5")
+                  .arg(QCoreApplication::applicationPid())
+                  .arg(generation)
+                  .arg(stage)
+                  .arg(attempts)
+                  .arg(code, 8, 16, QLatin1Char('0')));
+}
+
+void ToolboxController::pollWindowsPopups() {
+#ifdef Q_OS_WIN
+    const auto now = QDateTime::currentMSecsSinceEpoch();
+    const auto lookback = m_popupPollAt ? std::clamp<qint64>(now - m_popupPollAt + 5000, 10000, 86400000)
+                                       : 86400000;
+    const auto query = QStringLiteral(
+        "*[System[Provider[@Name='Application Popup'] and EventID=26 and "
+        "TimeCreated[timediff(@SystemTime) <= %1]]]").arg(lookback);
+    const auto events = EvtQuery(nullptr, L"System", reinterpret_cast<LPCWSTR>(query.utf16()),
+                                 EvtQueryChannelPath | EvtQueryReverseDirection);
+    if (!events) {
+        const auto error = GetLastError();
+        if (error != m_popupReadError)
+            appendLog(QStringLiteral("[Windows.ApplicationPopup] query_failed code=%1").arg(error));
+        m_popupReadError = error;
+        return;
+    }
+    m_popupReadError = 0;
+    m_popupPollAt = now;
+    const auto executable = QFileInfo(QCoreApplication::applicationFilePath()).fileName();
+    QStringList messages;
+    for (int index = 0; index < 128; ++index) {
+        EVT_HANDLE event = nullptr;
+        DWORD returned = 0;
+        if (!EvtNext(events, 1, &event, 0, 0, &returned))
+            break;
+        DWORD bytes = 0, properties = 0;
+        if (!EvtRender(nullptr, event, EvtRenderEventXml, 0, nullptr, &bytes, &properties) &&
+            GetLastError() == ERROR_INSUFFICIENT_BUFFER && bytes <= 128 * 1024) {
+            std::vector<wchar_t> buffer((bytes + sizeof(wchar_t) - 1) / sizeof(wchar_t));
+            if (EvtRender(nullptr, event, EvtRenderEventXml, bytes, buffer.data(), &bytes,
+                          &properties)) {
+                const auto message = windowsPopupDiagnostic(QString::fromWCharArray(buffer.data()),
+                                                            executable);
+                if (!message.isEmpty())
+                    messages.prepend(message);
+            }
+        }
+        EvtClose(event);
+    }
+    EvtClose(events);
+    if (messages.isEmpty())
+        return;
+    auto lines = activityLines(dataPath() + QStringLiteral("/activity.log"));
+    for (const auto& message : messages) {
+        if (std::none_of(lines.cbegin(), lines.cend(),
+                         [&message](const QString& line) { return line.endsWith(message); }))
+            appendLog(message);
+    }
+#endif
+}
+
 void ToolboxController::cleanupLogs() {
     const auto path = dataPath() + QStringLiteral("/activity.log");
     const int days = QSettings(settingsPath(), QSettings::IniFormat)
@@ -598,13 +908,49 @@ void ToolboxController::finishContext() {
                                                         : tr("Using the model default context")));
     }
 }
+void ToolboxController::applyTheme() {
+    const auto sheet = style();
+    m_home->setStyleSheet(sheet);
+    m_menu.setStyleSheet(sheet);
+    if (m_detail)
+        m_detail->setStyleSheet(sheet);
+    if (m_textWindow)
+        m_textWindow->setStyleSheet(sheet);
+    for (auto* window : {static_cast<QWidget*>(m_libraryWindow.data()), m_qrWindow.data()})
+        if (window)
+            window->setStyleSheet(sheet);
+    auto colors = m_home->palette();
+    colors.setColor(QPalette::Highlight, QColor(themeColor()));
+    colors.setColor(QPalette::HighlightedText, Qt::white);
+    m_home->setPalette(colors);
+    refreshUi();
+}
 QString ToolboxController::applySettings(bool updateShortcut) {
+    applyTheme();
     const auto shortcutError =
         configureCapture()
             ? (updateShortcut ? m_actions.applyCaptureShortcut() : QString())
             : tr("Unable to apply the screenshot shortcut. Check the shortcut and try again");
     m_quota.setEnabled(enabled(QStringLiteral("quota")));
     m_memory.setEnabled(enabled(QStringLiteral("memory")));
+    const bool clipboardEnabled = enabled(QStringLiteral("clipboardHistory"));
+    const bool notesEnabled = enabled(QStringLiteral("localNotes"));
+    m_clipboardTracker->setHistoryEnabled(clipboardEnabled);
+    m_home->findChild<QCheckBox*>(QStringLiteral("ClipboardRecordingSetting"))
+        ->setEnabled(clipboardEnabled);
+    if (m_libraryWindow)
+        m_libraryWindow->setFeatures(clipboardEnabled, notesEnabled);
+    if (m_qrWindow && !enabled(QStringLiteral("qrGenerator")))
+        m_qrWindow->close();
+    const auto updateModuleEntry = [](auto* entry) {
+        const auto module = entry->property("requiresModule").toString();
+        if (!module.isEmpty())
+            entry->setEnabled(enabled(module));
+    };
+    for (auto* button : m_home->findChildren<QPushButton*>())
+        updateModuleEntry(button);
+    for (auto* action : m_menu.actions())
+        updateModuleEntry(action);
     if (!enabled(QStringLiteral("translation")))
         OfflineTranslator::instance().stop();
     const bool pinsEnabled = enabled(QStringLiteral("pin"));
@@ -621,16 +967,72 @@ QString ToolboxController::applySettings(bool updateShortcut) {
     refreshUi();
     if (m_home->findChild<QTabWidget*>()->currentIndex() == 0)
         runContext(QStringLiteral("read"));
-    return shortcutError;
+    QString quickError;
+    if (QGuiApplication::platformName() == QStringLiteral("windows")) {
+        QSettings settings(settingsPath(), QSettings::IniFormat);
+        quickError = m_quickPaste->configure(
+            clipboardEnabled
+                ? QKeySequence(settings.value(QStringLiteral("quickClipboardShortcut"),
+                                              QStringLiteral("Ctrl+Alt+V")).toString())
+                : QKeySequence{},
+            notesEnabled
+                ? QKeySequence(settings.value(QStringLiteral("quickNotesShortcut"),
+                                              QStringLiteral("Ctrl+Alt+N")).toString())
+                : QKeySequence{});
+    }
+    return shortcutError.isEmpty() ? quickError : quickError.isEmpty() ? shortcutError : shortcutError + QLatin1Char('\n') + quickError;
 }
 void ToolboxController::setShortcutEditing(bool editing) {
     if (m_shortcutEditing == editing)
         return;
     m_shortcutEditing = editing;
     m_actions.setShortcutEditing(editing);
+    const auto error = m_quickPaste ? m_quickPaste->setSuspended(editing) : QString();
+    if (!error.isEmpty())
+        AppFeedback::show(QStringLiteral("快速呼出快捷键"), error);
 }
 void ToolboxController::showHome() {
-    m_home->showNormal();
+    m_quota.refreshOnInteraction();
+    m_hover.stop();
+    m_leave.stop();
+    m_detail->hide();
+    m_home->setWindowState(m_home->windowState() & ~Qt::WindowMinimized);
+    m_home->show();
+#ifdef Q_OS_WIN
+    if (QGuiApplication::platformName() == QStringLiteral("windows")) {
+        // A hidden STARTUPINFO can suppress the first native ShowWindow even though Qt marks
+        // the widget visible. Explicitly show it again so every entry point can recover.
+        const auto handle = reinterpret_cast<HWND>(m_home->winId());
+        if (!IsWindowVisible(handle))
+            ShowWindow(handle, m_home->isMaximized() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
+        SetForegroundWindow(handle);
+    }
+#endif
+    if (!m_home->isMaximized()) {
+        QSettings settings(settingsPath(), QSettings::IniFormat);
+        const auto savedPosition = settings.value(QStringLiteral("homePosition"));
+        auto* screen = savedPosition.isValid()
+                           ? QGuiApplication::screenAt(savedPosition.toPoint())
+                           : nullptr;
+        const bool restorePosition = screen != nullptr;
+        if (!screen)
+            screen = QGuiApplication::primaryScreen();
+        const auto area = screen->availableGeometry();
+        const auto frameExtra = m_home->frameSize() - m_home->size();
+        const auto availableSize = (area.size() - frameExtra).expandedTo(QSize(1, 1));
+        m_home->setMinimumSize(homeMinimumSize.boundedTo(availableSize));
+        m_home->resize(m_home->size().boundedTo(availableSize));
+        auto frame = m_home->frameGeometry();
+        frame.moveCenter(area.center());
+        if (restorePosition) {
+            const auto position = savedPosition.toPoint();
+            frame.moveTopLeft({std::clamp(position.x(), area.left(),
+                                          std::max(area.left(), area.right() - frame.width() + 1)),
+                               std::clamp(position.y(), area.top(),
+                                          std::max(area.top(), area.bottom() - frame.height() + 1))});
+        }
+        m_home->move(frame.topLeft());
+    }
     m_home->raise();
     m_home->activateWindow();
     refreshUi();
@@ -640,8 +1042,7 @@ void ToolboxController::reportShortcutFailure() {
         tr("The screenshot shortcut could not be registered. Choose another shortcut in Settings");
     m_status->setText(message);
     appendLog(message);
-    AppFeedback::notify(&m_tray, tr("Screenshot shortcut"), message,
-                        QSystemTrayIcon::Warning);
+    AppFeedback::notify(&m_tray, tr("Screenshot shortcut"), message, QSystemTrayIcon::Warning);
 }
 void ToolboxController::presentText(const QString& text) {
     if (m_textWindow)
@@ -761,8 +1162,9 @@ void ToolboxController::showCaptureSettings() {
         form->addRow(action[1], edit);
         edits.append(edit);
     }
-    label(tr("C copies RGB and X copies HEX before or after selection. Esc cancels. Line width, "
-             "colors and text size are available in the screenshot toolbar"),
+    label(tr("Before or after selection, press Shift to change the color format, C to copy in "
+             "that format, or X to copy HEX. Esc cancels. Line width, colors and text size are "
+             "available in the screenshot toolbar"),
           layout);
     auto* status = label({}, layout);
     button(tr("Save and apply"), layout, [this, dialog, actions, edits, status] {
@@ -803,14 +1205,21 @@ void ToolboxController::capture() {
     QTimer::singleShot(100, this, [this] { m_actions.capture(); });
 }
 void ToolboxController::captureActivity(bool active) {
+    if (active != m_capture)
+        appendLog(QStringLiteral("[screenshot.capture] pid=%1 stage=%2")
+                      .arg(QCoreApplication::applicationPid())
+                      .arg(active ? QStringLiteral("started") : QStringLiteral("ended")));
     m_capture = active;
     m_hover.stop();
     if (active) {
+        m_taskbarTracking.stop();
+        m_taskbarEvents->setEnabled(false);
         m_card->hide();
         m_detail->hide();
         m_leave.stop();
-    } else if (enabled(QStringLiteral("card")))
-        m_card->show();
+    } else {
+        positionCard();
+    }
 }
 void ToolboxController::clean(bool deep) {
     if (!enabled(QStringLiteral("cleanup")))
@@ -846,14 +1255,14 @@ QString ToolboxController::quotaHtml() const {
                                "span><br><span style='color:#7b8799'>%5 %6</span></p>")
                     .arg(window.title.toHtmlEscaped())
                     .arg(20)
-                    .arg(m_quota.stale() ? QStringLiteral("#94a3b8") : QStringLiteral("#3976e9"))
+                    .arg(m_quota.stale() ? QStringLiteral("#94a3b8") : themeColor())
                     .arg(window.remaining, 0, 'f', 0)
                     .arg(tr("Resets").toHtmlEscaped(), date);
         html += QStringLiteral("</td>");
     }
     if (!windows.isEmpty())
         html += QStringLiteral("</tr></table>");
-    return html;
+    return html.replace(QStringLiteral("THEME_ACCENT"), themeColor());
 }
 QString ToolboxController::memoryHtml(bool compact) const {
     if (!enabled(QStringLiteral("memory")))
@@ -862,7 +1271,7 @@ QString ToolboxController::memoryHtml(bool compact) const {
     if (!memory.total)
         return tr("Reading memory…");
     const auto capacity = [](const QString& title, quint64 total, quint64 available) {
-        return QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:#3976e9'>%2%</span>"
+        return QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:THEME_ACCENT'>%2%</span>"
                               " · %3<br>%4<br>%5")
             .arg(title.toHtmlEscaped())
             .arg(total ? 100.0 * (1 - double(available) / double(total)) : 0, 0, 'f', 0)
@@ -875,31 +1284,49 @@ QString ToolboxController::memoryHtml(bool compact) const {
     const QStringList cells{
         capacity(tr("Physical memory"), memory.total, memory.available),
         capacity(tr("Virtual memory (commit)"), memory.virtualTotal, memory.virtualAvailable),
-        QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:#3976e9'>%2 GiB</span>")
+        QStringLiteral("<b>%1</b><br><span style='font-size:16pt;color:THEME_ACCENT'>%2 GiB</span>")
             .arg(tr("System cache").toHtmlEscaped())
             .arg(memory.systemCache / 1073741824.0, 0, 'f', 2)};
-    QString html = QStringLiteral("<table width='100%' cellspacing='0' cellpadding='4'><tr>");
+    QString html = compact
+                       ? QStringLiteral("<table width='100%' cellspacing='0' cellpadding='2' "
+                                        "style='font-size:9pt'><tr>")
+                       : QStringLiteral("<table width='100%' cellspacing='0' cellpadding='4'><tr>");
     for (int i = 0; i < cells.size(); ++i) {
-        if (compact && i)
-            html += QStringLiteral("</tr><tr>");
         html += QStringLiteral("<td valign='top'>") + cells[i] + QStringLiteral("</td>");
     }
-    html += QStringLiteral("</tr></table><p style='color:#64748b'>");
+    html += compact ? QStringLiteral("</tr></table><p style='font-size:8.5pt;color:#64748b'>")
+                    : QStringLiteral("</tr></table><p style='color:#64748b'>");
     html += tr("Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit")
                 .arg(memory.ownedProcesses)
                 .arg(memory.privateWorking / 1048576.0, 0, 'f', 1)
                 .arg(memory.committed / 1048576.0, 0, 'f', 1);
-    return html + QStringLiteral("</p>");
+    return (html + QStringLiteral("</p>")).replace(QStringLiteral("THEME_ACCENT"), themeColor());
 }
 void ToolboxController::refreshUi() {
     if (!m_card)
         return;
+    QSettings settings(settingsPath(), QSettings::IniFormat);
+    const auto cardStyle = settings.value(QStringLiteral("cardStyle")).toString();
+    const bool docked = cardStyle == QStringLiteral("taskbar");
+    if (docked != m_taskbarDocked) {
+        m_dragging = false;
+        m_hover.stop();
+        m_detail->hide();
+        if (docked) {
+            settings.setValue(QStringLiteral("cardPosition"), m_card->pos());
+        } else {
+            m_card->setTaskbarHeight(0);
+            m_card->move(settings.value(QStringLiteral("cardPosition"), m_card->pos()).toPoint());
+        }
+        m_taskbarDocked = docked;
+        if (docked)
+            m_taskbarTracking.start();
+        else
+            m_taskbarTracking.stop();
+    }
     m_card->present(m_quota.windows(), m_quota.stale(), enabled(QStringLiteral("quota")),
-                    QSettings(settingsPath(), QSettings::IniFormat)
-                            .value(QStringLiteral("cardStyle"))
-                            .toString() == QStringLiteral("stacked"),
-                    tr("Disabled"));
-    m_card->move(visiblePosition(m_card->pos(), m_card->size()));
+                    cardStyle == QStringLiteral("stacked"), tr("Disabled"));
+    positionCard();
     m_quotaLabel->setText(quotaHtml());
     m_quotaStatus->setText(m_quota.status());
     m_quotaStatus->setToolTip(m_quota.status());
@@ -909,10 +1336,10 @@ void ToolboxController::refreshUi() {
                      ? m_quota.updatedAt().toString(QStringLiteral("MM-dd HH:mm:ss"))
                      : QStringLiteral("--")));
     m_memoryLabel->setText(memoryHtml());
-    m_detailLabel->setText(quotaHtml() + QStringLiteral("<p>") + m_quota.status().toHtmlEscaped() +
-                           QStringLiteral("<br>") + m_quotaUpdated->text().toHtmlEscaped() +
-                           QStringLiteral("</p><hr>") + memoryHtml(true));
-    m_detailStatus->setText(m_status->text());
+    m_detailLabel->setText(quotaHtml() + QStringLiteral("<p style='font-size:9pt'>") +
+                           m_quota.status().toHtmlEscaped() + QStringLiteral(" &nbsp;·&nbsp; ") +
+                           m_quotaUpdated->text().toHtmlEscaped() + QStringLiteral("</p><hr>") +
+                           memoryHtml(true));
     for (auto* window : {m_home, m_detail})
         for (auto* buttonWidget : window->findChildren<QPushButton*>()) {
             if (buttonWidget->objectName() == QStringLiteral("CleanupButton")) {
@@ -927,13 +1354,64 @@ void ToolboxController::refreshUi() {
     m_menu.actions().value(1)->setEnabled(enabled(QStringLiteral("capture")));
     m_menu.actions().value(2)->setEnabled(enabled(QStringLiteral("pin")));
 }
+void ToolboxController::positionCard() {
+    if (!m_card)
+        return;
+    bool visible = !m_capture && enabled(QStringLiteral("card"));
+    m_taskbarEvents->setEnabled(visible && m_taskbarDocked);
+    if (!visible) {
+        m_taskbarTracking.stop();
+    } else if (m_taskbarDocked) {
+        if (!m_taskbarTracking.isActive())
+            m_taskbarTracking.start();
+        const auto dock = currentTaskbarDock();
+        if (!dock.bar.isEmpty())
+            m_card->setTaskbarHeight(std::max(1, dock.bar.height() - 4));
+        const auto position = taskbarCardPosition(dock, m_card->size());
+        visible = visible && position.has_value();
+        if (position)
+            m_card->move(*position);
+    } else if (!m_dragging) {
+        m_card->move(visiblePosition(m_card->pos(), m_card->size()));
+    }
+    m_card->setVisible(visible);
+    if (!visible) {
+        m_hover.stop();
+        m_leave.stop();
+        m_detail->hide();
+    }
+#ifdef Q_OS_WIN
+    if (QGuiApplication::platformName() == QStringLiteral("windows") &&
+        m_card->testAttribute(Qt::WA_WState_Created)) {
+        const auto handle = reinterpret_cast<HWND>(m_card->winId());
+        const auto previous = m_card->property("TaskbarPeekExcluded");
+        if (!previous.isValid() || previous.toBool() != m_taskbarDocked) {
+            const BOOL excluded = m_taskbarDocked ? TRUE : FALSE;
+            if (SUCCEEDED(DwmSetWindowAttribute(handle, DWMWA_EXCLUDED_FROM_PEEK, &excluded,
+                                                sizeof(excluded))))
+                m_card->setProperty("TaskbarPeekExcluded", m_taskbarDocked);
+        }
+        // Raising an already correctly ordered window can itself generate another reorder event.
+        if (visible && m_taskbarDocked && taskbarCoversCard(handle))
+            SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+#endif
+}
 void ToolboxController::showDetail() {
     if (m_capture || !m_card->isVisible() || m_dragging)
         return;
     refreshUi();
+    if (!m_card->isVisible())
+        return;
     m_detail->adjustSize();
-    const auto area = QGuiApplication::screenAt(m_card->geometry().center())->availableGeometry();
-    QPoint position = m_card->pos() - QPoint(m_detail->width() + 6, 0);
+    auto* screen = QGuiApplication::screenAt(m_card->geometry().center());
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    const auto area = screen->availableGeometry();
+    QPoint position = m_taskbarDocked ? QPoint(m_card->x() + m_card->width() - m_detail->width(),
+                                               m_card->y() - m_detail->height() - 6)
+                                      : m_card->pos() - QPoint(m_detail->width() + 6, 0);
     if (position.x() < area.left())
         position.setX(m_card->geometry().right() + 7);
     m_detail->move(visiblePosition(position, m_detail->size()));
@@ -943,6 +1421,11 @@ void ToolboxController::showDetail() {
 bool ToolboxController::eventFilter(QObject* object, QEvent* event) {
     if (object == m_home && (event->type() == QEvent::Hide || event->type() == QEvent::Close))
         setShortcutEditing(false);
+    if (object == qApp && event->type() == QEvent::Quit && m_libraryWindow && !m_libraryWindow->notes()->flush()) {
+        showNotes();
+        event->ignore();
+        return true;
+    }
     if (object == qApp && event->type() == QEvent::Quit)
         m_quitting = true;
     if (object == m_home && event->type() == QEvent::Close && !m_quitting) {
@@ -952,8 +1435,12 @@ bool ToolboxController::eventFilter(QObject* object, QEvent* event) {
     }
     if (object != m_card)
         return QObject::eventFilter(object, event);
-    if (event->type() == QEvent::Enter)
+    if (event->type() == QEvent::WinIdChange)
+        m_card->setProperty("TaskbarPeekExcluded", QVariant());
+    if (event->type() == QEvent::Enter) {
+        m_quota.refreshOnInteraction();
         m_hover.start();
+    }
     if (event->type() == QEvent::Leave)
         m_hover.stop();
     if (event->type() == QEvent::ContextMenu) {
@@ -978,14 +1465,15 @@ bool ToolboxController::eventFilter(QObject* object, QEvent* event) {
             static_cast<QMouseEvent*>(event)->globalPosition().toPoint() - m_dragOrigin;
         if (delta.manhattanLength() > QApplication::startDragDistance())
             m_moved = true;
-        if (m_moved)
+        if (m_moved && !m_taskbarDocked)
             m_card->move(m_dragPosition + delta);
     }
     if (event->type() == QEvent::MouseButtonRelease && m_dragging) {
         m_dragging = false;
-        m_card->move(visiblePosition(m_card->pos(), m_card->size()));
-        QSettings(settingsPath(), QSettings::IniFormat)
-            .setValue(QStringLiteral("cardPosition"), m_card->pos());
+        positionCard();
+        if (!m_taskbarDocked)
+            QSettings(settingsPath(), QSettings::IniFormat)
+                .setValue(QStringLiteral("cardPosition"), m_card->pos());
         if (!m_moved)
             showHome();
     }
@@ -1009,6 +1497,7 @@ bool ToolboxController::configureCapture() {
                       ? QJsonArray{captureKey}
                       : QJsonArray{});
     values.insert(QStringLiteral("tray/enabled"), false);
+    values.insert(QStringLiteral("interface/language"), QStringLiteral("zh_CN"));
     values.insert(QStringLiteral("updates/mode"), QStringLiteral("manual"));
     values.insert(QStringLiteral("mcp/enabled"), false);
     values.insert(QStringLiteral("system/context_menu_mode"), QStringLiteral("disabled"));

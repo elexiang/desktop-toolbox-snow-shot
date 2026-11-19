@@ -33,6 +33,13 @@ and REUSE metadata are collected from the matching verified Qt source archive.
 The OCR worker and models come from the verified Snow Shot 1.5.7 portable
 release; its original versioned license bundle is included separately.
 
+Local clipboard history and notes use the same Qt 6.12.0 kit's Qt SQL module
+and QSQLITE driver. The driver embeds SQLite. SQLite's authors dedicate its
+deliverable code and documentation to the public domain; see
+https://www.sqlite.org/copyright.html. Qt SQL and its driver retain the Qt
+licensing terms included in the Qt notice bundle. No external database server
+is used.
+
 ## Upstream notice bundle
 
 Snow Shot incorporates third-party software and assets under their respective

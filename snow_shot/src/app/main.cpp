@@ -2,6 +2,7 @@
 #include "../toolbox/toolboxcontroller.h"
 #include "../toolbox/memoryservice.h"
 #include "../toolbox/toolboxpaths.h"
+#include "../toolbox/locallibrary.h"
 #include "snow_shot/platform/applicationqos.h"
 #include "snow_shot/app/applicationcontroller.h"
 #include "snow_shot/app/applicationrestart.h"
@@ -129,6 +130,25 @@ std::optional<bool> updateTransactionPending(const QString& helperPath, const QS
 } // namespace
 
 int main(int argc, char* argv[]) {
+    if (argc == 2 && QByteArray(argv[1]) == "--toolbox-library-probe") {
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+        QApplication probe(argc, argv);
+        QTemporaryDir directory;
+        if (!directory.isValid())
+            return 6;
+        const auto root = directory.filePath(QStringLiteral("library"));
+        qint64 id = 0;
+        {
+            toolbox::LocalLibrary library(root);
+            if (!library.isOpen() || !library.recordText(QStringLiteral("本地持久化验证")))
+                return 7;
+            id = library.clipToNote(library.clipboard().first().id);
+            if (!id || !library.backup(directory.filePath(QStringLiteral("probe.sntbackup"))))
+                return 8;
+        }
+        toolbox::LocalLibrary reopened(root);
+        return reopened.isOpen() && reopened.note(id).text == QStringLiteral("本地持久化验证") ? 0 : 9;
+    }
     if (argc == 2 && QByteArray(argv[1]) == "--toolbox-configuration-probe") {
         qputenv("QT_QPA_PLATFORM", "offscreen");
         QApplication probe(argc, argv);
@@ -169,6 +189,7 @@ int main(int argc, char* argv[]) {
                      .toBool() &&
                 !configuration.value(QStringLiteral("text_recognition/model_hot_start")).toBool() &&
                 configuration.value(QStringLiteral("updates/mode")).toString() == u"manual" &&
+                configuration.value(QStringLiteral("interface/language")).toString() == u"zh_CN" &&
                 !configuration.value(QStringLiteral("tray/enabled")).toBool();
             const auto actions =
                 configuration.value(QStringLiteral("screenshot_toolbar/action_tools_layout"))

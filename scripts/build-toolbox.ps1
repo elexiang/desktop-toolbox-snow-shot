@@ -3,6 +3,7 @@ param(
     [string]$QtPrefix = 'E:\DevCaches\snow-toolbox-build\Qt',
     [string]$BuildDirectory = 'build/toolbox-release',
     [string]$OcrExecutable = '',
+    [ValidatePattern('^[A-Za-z0-9_-]+$')][string]$PreviewName = 'SnowToolbox',
     [string]$CMakeExecutable = '',
     [int]$Parallelism = 2,
     [switch]$RuntimeTests,
@@ -16,7 +17,7 @@ if (-not $CMakeExecutable) {
     $CMakeExecutable = if (Test-Path -LiteralPath $managedCMake) { $managedCMake } else { (Get-Command cmake -ErrorAction Stop).Source }
 }
 . (Join-Path $PSScriptRoot 'snow-build-environment.ps1')
-Add-SnowMsvcToolsToPath -Architecture x64 | Out-Null
+$msvcBin = Add-SnowMsvcToolsToPath -Architecture x64
 $env:PATH = "$env:USERPROFILE\.cargo\bin;$QtPrefix\bin;$env:PATH"
 $env:CARGO_BUILD_JOBS = [string]$Parallelism
 $env:VCPKG_MAX_CONCURRENCY = [string]$Parallelism
@@ -30,6 +31,7 @@ $ninja = Join-Path $env:VSINSTALLDIR 'Common7/IDE/CommonExtensions/Microsoft/CMa
 if (-not (Test-Path -LiteralPath $ninja)) { $ninja = (Get-Command ninja -ErrorAction Stop).Source }
 & $CMakeExecutable -S . -B $BuildDirectory -G Ninja `
     "-DCMAKE_MAKE_PROGRAM=$ninja" -DCMAKE_BUILD_TYPE=Release `
+    "-DCMAKE_C_COMPILER=$msvcBin/cl.exe" "-DCMAKE_CXX_COMPILER=$msvcBin/cl.exe" `
     "-DCMAKE_PREFIX_PATH=$QtPrefix" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
     "-DPython3_EXECUTABLE=$python" `
     "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/vcpkg/scripts/buildsystems/vcpkg.cmake" `
@@ -44,7 +46,7 @@ if (-not (Test-Path -LiteralPath $ninja)) { $ninja = (Get-Command ninja -ErrorAc
     -DSNOW_APPS_PACKAGE_SNOW_SHOT=OFF -DSNOW_IMAGE_PROFILE=redistributable `
     -DSNOW_SHOT_ENABLE_MCP=OFF -DSNOW_APPS_API_BASE_URL=http://127.0.0.1 `
     -DSNOW_APPS_FREE_TRANSLATION_API_BASE_URL=http://127.0.0.1 `
-    "-DSNOW_TOOLBOX_OCR_EXECUTABLE=$OcrExecutable"
+    "-DSNOW_TOOLBOX_OCR_EXECUTABLE=$OcrExecutable" "-DSNOW_TOOLBOX_EXECUTABLE_NAME=$PreviewName"
 if ($LASTEXITCODE) { throw 'Snow Toolbox configuration failed' }
 if (-not $ConfigureOnly) {
     & $CMakeExecutable --build $BuildDirectory --target snow_shot --parallel $Parallelism
@@ -52,7 +54,7 @@ if (-not $ConfigureOnly) {
     # An elevated helper does not inherit the development Qt PATH. Keep the
     # build-tree executable independently runnable, just like the portable app.
     & (Join-Path $PSScriptRoot 'deploy-toolbox-build-runtime.ps1') `
-        -BuildDirectory $BuildDirectory -QtPrefix $QtPrefix
+        -BuildDirectory $BuildDirectory -QtPrefix $QtPrefix -ExecutableName "$PreviewName.exe"
     & (Join-Path $PSScriptRoot 'test-toolbox-build-runtime.ps1') `
-        -Executable (Join-Path $BuildDirectory 'snow_shot/SnowToolbox.exe')
+        -Executable (Join-Path $BuildDirectory "snow_shot/$PreviewName.exe")
 }

@@ -2880,7 +2880,7 @@ void completionGesturesUseSharedEligibilityAcrossTools() {
             "failed to restore completion gesture settings");
 }
 
-void colorCopyEndsCaptureOnlyAfterSuccessfulCopy() {
+void colorCopyShortcutsPreserveCaptureAndChooseFormat() {
     ScreenshotCaptureState captureState;
     ScreenshotDisplaySession displays;
     ScreenshotGeometryMapper geometry;
@@ -2895,17 +2895,17 @@ void colorCopyEndsCaptureOnlyAfterSuccessfulCopy() {
     bool colorAvailable = false;
     int copyCalls = 0;
     int cancelCalls = 0;
+    bool copiedAsHex = false;
     ScreenshotOverlayInputActions actions;
-    actions.copyColorPickerColorToClipboard = [&]() {
+    actions.copyColorPickerColorToClipboard = [&](bool forceHex) {
         if (interaction.inactive()) {
             return false;
         }
         ++copyCalls;
+        copiedAsHex = forceHex;
         return colorAvailable;
     };
     actions.cancelCapture = [&]() {
-        require(colorAvailable && copyCalls > cancelCalls,
-                "capture must close only after a successful color copy");
         ++cancelCalls;
         interaction.reset();
     };
@@ -2917,17 +2917,22 @@ void colorCopyEndsCaptureOnlyAfterSuccessfulCopy() {
                 !interaction.inactive(),
             "a failed color copy must keep the capture open");
     colorAvailable = true;
-    require(dispatchShortcut(shortcutWindow, Qt::Key_C) && copyCalls == 2 && cancelCalls == 1 &&
-                interaction.inactive(),
-            "a successful color copy must end the capture");
-    require(!dispatchShortcut(shortcutWindow, Qt::Key_C) && copyCalls == 2 && cancelCalls == 1,
-            "an inactive capture must not copy or close again");
+    require(dispatchShortcut(shortcutWindow, Qt::Key_C) && copyCalls == 2 && !copiedAsHex &&
+                cancelCalls == 0 && !interaction.inactive(),
+            "C must copy in the active format and keep the capture open");
+    require(dispatchShortcut(shortcutWindow, Qt::Key_X) && copyCalls == 3 && copiedAsHex &&
+                cancelCalls == 0 && !interaction.inactive(),
+            "X must copy fixed HEX and keep the capture open");
+    interaction.reset();
+    require(!dispatchShortcut(shortcutWindow, Qt::Key_C) &&
+                !dispatchShortcut(shortcutWindow, Qt::Key_X) && copyCalls == 3 && cancelCalls == 0,
+            "an inactive capture must ignore both color copy shortcuts");
 
     interaction.beginCapture();
     interaction.enterOverlayVisible(true);
-    require(dispatchShortcut(shortcutWindow, Qt::Key_C) && copyCalls == 3 && cancelCalls == 2 &&
-                interaction.inactive(),
-            "copying a color during initial selection must also end the capture");
+    require(dispatchShortcut(shortcutWindow, Qt::Key_C) && copyCalls == 4 && !copiedAsHex &&
+                cancelCalls == 0 && !interaction.inactive(),
+            "C must also copy in the active format during initial selection");
 }
 
 void sharedShiftShortcutChoosesResizeOrColorFormat() {
@@ -3798,7 +3803,7 @@ void configuredSelectionShortcutsRouteTabHistoryAndColorActions(bool targetSwitc
         ++previousSelectionCalls;
         return previousSelectionAvailable;
     };
-    actions.copyColorPickerColorToClipboard = [&copyColorCalls]() {
+    actions.copyColorPickerColorToClipboard = [&copyColorCalls](bool) {
         ++copyColorCalls;
         return true;
     };
@@ -8475,7 +8480,7 @@ int main(int argc, char** argv) {
         areaTypesExitFromPreselectionButKeepDraftCancellation();
         scrollingCaptureRoutesEveryToolbarShortcut();
         externalSelectionSupportsHeldShortcuts();
-        colorCopyEndsCaptureOnlyAfterSuccessfulCopy();
+        colorCopyShortcutsPreserveCaptureAndChooseFormat();
         sharedShiftShortcutChoosesResizeOrColorFormat();
         configuredSelectionShortcutsRouteTabHistoryAndColorActions();
         guideToggleShortcutFollowsSessionInputAndRemapping();
@@ -8546,7 +8551,7 @@ int main(int argc, char** argv) {
     smartSelectionWheelAccumulatesMovement();
     completionGesturesUseSharedEligibilityAcrossTools();
     externalSelectionSupportsHeldShortcuts();
-    colorCopyEndsCaptureOnlyAfterSuccessfulCopy();
+    colorCopyShortcutsPreserveCaptureAndChooseFormat();
     sharedShiftShortcutChoosesResizeOrColorFormat();
     configuredSelectionShortcutsRouteTabHistoryAndColorActions();
     guideToggleShortcutFollowsSessionInputAndRemapping();

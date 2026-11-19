@@ -4,6 +4,7 @@
 #include <QProcess>
 #include <QTimer>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QJsonObject>
 
 namespace toolbox {
@@ -20,6 +21,7 @@ class QuotaService final : public QObject {
     ~QuotaService() override;
     void setEnabled(bool enabled);
     void refresh();
+    void refreshOnInteraction();
     void shutdown();
     QString status() const {
         return m_status;
@@ -39,13 +41,14 @@ class QuotaService final : public QObject {
 
   private:
     QProcess m_process;
-    QTimer m_refresh, m_deadline, m_retire;
+    QTimer m_refresh{this};
+    QTimer m_deadline, m_retire;
+    QElapsedTimer m_lastInteractionRefresh;
     QByteArray m_buffer;
     QJsonObject m_buckets;
     QDateTime m_updatedAt;
     QString m_status;
     bool m_enabled = false, m_pending = false, m_stale = true, m_closing = false;
-    int m_failures = 0;
     void send(QString method, int id);
     void read();
     void fail(QString message);

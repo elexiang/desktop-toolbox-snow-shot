@@ -2,6 +2,357 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US" sourcelanguage="en_US">
     <context>
+        <name>ToolboxLibrary</name>
+        <message>
+            <source>All categories</source>
+            <translation>All categories</translation>
+        </message>
+        <message>
+            <source>Back up clipboard and notes</source>
+            <translation>Back up clipboard and notes</translation>
+        </message>
+        <message>
+            <source>Back up library…</source>
+            <translation>Back up library…</translation>
+        </message>
+        <message>
+            <source>Batch actions</source>
+            <translation>Batch actions</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>Cancel</translation>
+        </message>
+        <message>
+            <source>Categories can contain at most 512 characters</source>
+            <translation>Categories can contain at most 512 characters</translation>
+        </message>
+        <message>
+            <source>Category (optional)</source>
+            <translation>Category (optional)</translation>
+        </message>
+        <message>
+            <source>Change category</source>
+            <translation>Change category</translation>
+        </message>
+        <message>
+            <source>Changed the category of %1 notes</source>
+            <translation>Changed the category of %1 notes</translation>
+        </message>
+        <message>
+            <source>Clear clipboard history</source>
+            <translation>Clear clipboard history</translation>
+        </message>
+        <message>
+            <source>Clear clipboard history? Saved notes will be kept.</source>
+            <translation>Clear clipboard history? Saved notes will be kept.</translation>
+        </message>
+        <message>
+            <source>Clear history…</source>
+            <translation>Clear history…</translation>
+        </message>
+        <message>
+            <source>Clipboard</source>
+            <translation>Clipboard</translation>
+        </message>
+        <message>
+            <source>Clipboard and notes</source>
+            <translation>Clipboard and notes</translation>
+        </message>
+        <message>
+            <source>Clipboard history</source>
+            <translation>Clipboard history</translation>
+        </message>
+        <message>
+            <source>Clipboard history is recorded while the toolbox is running</source>
+            <translation>Clipboard history is recorded while the toolbox is running</translation>
+        </message>
+        <message>
+            <source>Clipboard history limits</source>
+            <translation>Clipboard history limits</translation>
+        </message>
+        <message>
+            <source>Clipboard history updated</source>
+            <translation>Clipboard history updated</translation>
+        </message>
+        <message>
+            <source>Clipboard history, notes and images backed up</source>
+            <translation>Clipboard history, notes and images backed up</translation>
+        </message>
+        <message>
+            <source>Clipboard image</source>
+            <translation>Clipboard image</translation>
+        </message>
+        <message>
+            <source>Copy to clipboard</source>
+            <translation>Copy to clipboard</translation>
+        </message>
+        <message>
+            <source>Could not commit the library transaction</source>
+            <translation>Could not commit the library transaction</translation>
+        </message>
+        <message>
+            <source>Could not read legacy favorites</source>
+            <translation>Could not read legacy favorites</translation>
+        </message>
+        <message>
+            <source>Could not start the library transaction</source>
+            <translation>Could not start the library transaction</translation>
+        </message>
+        <message>
+            <source>Create a note or select one from the list</source>
+            <translation>Create a note or select one from the list</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>Delete</translation>
+        </message>
+        <message>
+            <source>Delete selected</source>
+            <translation>Delete selected</translation>
+        </message>
+        <message>
+            <source>Deleted</source>
+            <translation>Deleted</translation>
+        </message>
+        <message>
+            <source>Deleted %1</source>
+            <translation>Deleted %1</translation>
+        </message>
+        <message>
+            <source>Done</source>
+            <translation>Done</translation>
+        </message>
+        <message>
+            <source>Editing…</source>
+            <translation>Editing…</translation>
+        </message>
+        <message>
+            <source>Export note</source>
+            <translation>Export note</translation>
+        </message>
+        <message>
+            <source>Export note…</source>
+            <translation>Export note…</translation>
+        </message>
+        <message>
+            <source>History cleared</source>
+            <translation>History cleared</translation>
+        </message>
+        <message>
+            <source>History limits saved</source>
+            <translation>History limits saved</translation>
+        </message>
+        <message>
+            <source>History limits…</source>
+            <translation>History limits…</translation>
+        </message>
+        <message>
+            <source>Image attachment %1 (double-click to preview)</source>
+            <translation>Image attachment %1 (double-click to preview)</translation>
+        </message>
+        <message>
+            <source>Image items</source>
+            <translation>Image items</translation>
+        </message>
+        <message>
+            <source>Library restored. Previous library saved in %1</source>
+            <translation>Library restored. Previous library saved in %1</translation>
+        </message>
+        <message>
+            <source>Load more</source>
+            <translation>Load more</translation>
+        </message>
+        <message>
+            <source>Markdown or text (*.md *.txt)</source>
+            <translation>Markdown or text (*.md *.txt)</translation>
+        </message>
+        <message>
+            <source>More</source>
+            <translation>More</translation>
+        </message>
+        <message>
+            <source>New note</source>
+            <translation>New note</translation>
+        </message>
+        <message>
+            <source>Note and attachments exported</source>
+            <translation>Note and attachments exported</translation>
+        </message>
+        <message>
+            <source>Note deleted</source>
+            <translation>Note deleted</translation>
+        </message>
+        <message>
+            <source>Note image</source>
+            <translation>Note image</translation>
+        </message>
+        <message>
+            <source>Note limits are 256 characters for the title, 512 for the category and 2 MiB for the body</source>
+            <translation>Note limits are 256 characters for the title, 512 for the category and 2 MiB for the body</translation>
+        </message>
+        <message>
+            <source>Notes</source>
+            <translation>Notes</translation>
+        </message>
+        <message>
+            <source>Old clipboard items are removed at the limit. Saved notes are kept.</source>
+            <translation>Old clipboard items are removed at the limit. Saved notes are kept.</translation>
+        </message>
+        <message>
+            <source>Paste</source>
+            <translation>Paste</translation>
+        </message>
+        <message>
+            <source>Paste body</source>
+            <translation>Paste body</translation>
+        </message>
+        <message>
+            <source>Paste into the input field</source>
+            <translation>Paste into the input field</translation>
+        </message>
+        <message>
+            <source>Pasting would exceed 2 MiB. The note was left unchanged.</source>
+            <translation>Pasting would exceed 2 MiB. The note was left unchanged.</translation>
+        </message>
+        <message>
+            <source>Permanently delete %1 notes? This cannot be undone.</source>
+            <translation>Permanently delete %1 notes? This cannot be undone.</translation>
+        </message>
+        <message>
+            <source>Permanently delete note</source>
+            <translation>Permanently delete note</translation>
+        </message>
+        <message>
+            <source>Permanently delete selected…</source>
+            <translation>Permanently delete selected…</translation>
+        </message>
+        <message>
+            <source>Permanently delete this note…</source>
+            <translation>Permanently delete this note…</translation>
+        </message>
+        <message>
+            <source>Pin to top</source>
+            <translation>Pin to top</translation>
+        </message>
+        <message>
+            <source>Preview image</source>
+            <translation>Preview image</translation>
+        </message>
+        <message>
+            <source>Record clipboard</source>
+            <translation>Record clipboard</translation>
+        </message>
+        <message>
+            <source>Recycle bin</source>
+            <translation>Recycle bin</translation>
+        </message>
+        <message>
+            <source>Replace current clipboard history and notes with this backup? A copy of the current library will be kept.</source>
+            <translation>Replace current clipboard history and notes with this backup? A copy of the current library will be kept.</translation>
+        </message>
+        <message>
+            <source>Restore backup…</source>
+            <translation>Restore backup…</translation>
+        </message>
+        <message>
+            <source>Restore library</source>
+            <translation>Restore library</translation>
+        </message>
+        <message>
+            <source>Restore selected</source>
+            <translation>Restore selected</translation>
+        </message>
+        <message>
+            <source>Restore this note</source>
+            <translation>Restore this note</translation>
+        </message>
+        <message>
+            <source>Restore toolbox library</source>
+            <translation>Restore toolbox library</translation>
+        </message>
+        <message>
+            <source>Save and apply</source>
+            <translation>Save and apply</translation>
+        </message>
+        <message>
+            <source>Save as notes</source>
+            <translation>Save as notes</translation>
+        </message>
+        <message>
+            <source>Saved</source>
+            <translation>Saved</translation>
+        </message>
+        <message>
+            <source>Saved %1 notes</source>
+            <translation>Saved %1 notes</translation>
+        </message>
+        <message>
+            <source>Saved as a note</source>
+            <translation>Saved as a note</translation>
+        </message>
+        <message>
+            <source>Saved · %1</source>
+            <translation>Saved · %1</translation>
+        </message>
+        <message>
+            <source>Search clipboard text</source>
+            <translation>Search clipboard text</translation>
+        </message>
+        <message>
+            <source>Search notes</source>
+            <translation>Search notes</translation>
+        </message>
+        <message>
+            <source>Select all</source>
+            <translation>Select all</translation>
+        </message>
+        <message>
+            <source>Text items</source>
+            <translation>Text items</translation>
+        </message>
+        <message>
+            <source>The image file is missing or damaged</source>
+            <translation>The image file is missing or damaged</translation>
+        </message>
+        <message>
+            <source>The note has no body text</source>
+            <translation>The note has no body text</translation>
+        </message>
+        <message>
+            <source>Title (defaults to the first line)</source>
+            <translation>Title (defaults to the first line)</translation>
+        </message>
+        <message>
+            <source>Toolbox library backup (*.sntbackup)</source>
+            <translation>Toolbox library backup (*.sntbackup)</translation>
+        </message>
+        <message>
+            <source>Toolbox-library-%1.sntbackup</source>
+            <translation>Toolbox-library-%1.sntbackup</translation>
+        </message>
+        <message>
+            <source>Total size (MiB)</source>
+            <translation>Total size (MiB)</translation>
+        </message>
+        <message>
+            <source>Type text or paste images. Changes are saved automatically.</source>
+            <translation>Type text or paste images. Changes are saved automatically.</translation>
+        </message>
+        <message>
+            <source>Unpin</source>
+            <translation>Unpin</translation>
+        </message>
+        <message>
+            <source>Untitled note</source>
+            <translation>Untitled note</translation>
+        </message>
+        <message>
+            <source>[Image]</source>
+            <translation>[Image]</translation>
+        </message>
+    </context>
+    <context>
         <name>toolbox::MemoryService</name>
         <message>
             <source>Deep cleanup was not performed. Authorization cancelled or launch failed (%1)</source>
@@ -52,6 +403,81 @@
         </message>
     </context>
     <context>
+        <name>toolbox::QrGeneratorWindow</name>
+        <message>
+            <source>%1 / %2 UTF-8 bytes</source>
+            <translation>%1 / %2 UTF-8 bytes</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>Close</translation>
+        </message>
+        <message>
+            <source>Copy image</source>
+            <translation>Copy image</translation>
+        </message>
+        <message>
+            <source>Could not save the QR code image</source>
+            <translation>Could not save the QR code image</translation>
+        </message>
+        <message>
+            <source>Enter text or a URL (up to %1 UTF-8 bytes)</source>
+            <translation>Enter text or a URL (up to %1 UTF-8 bytes)</translation>
+        </message>
+        <message>
+            <source>Generate QR code</source>
+            <translation>Generate QR code</translation>
+        </message>
+        <message>
+            <source>Generated locally. Input is not saved or uploaded</source>
+            <translation>Generated locally. Input is not saved or uploaded</translation>
+        </message>
+        <message>
+            <source>Input contains an unsupported null character</source>
+            <translation>Input contains an unsupported null character</translation>
+        </message>
+        <message>
+            <source>Input is too long; shorten it to generate a QR code</source>
+            <translation>Input is too long; shorten it to generate a QR code</translation>
+        </message>
+        <message>
+            <source>PNG image (*.png)</source>
+            <translation>PNG image (*.png)</translation>
+        </message>
+        <message>
+            <source>QR code generation failed; try shorter text</source>
+            <translation>QR code generation failed; try shorter text</translation>
+        </message>
+        <message>
+            <source>QR code image copied</source>
+            <translation>QR code image copied</translation>
+        </message>
+        <message>
+            <source>QR code image saved</source>
+            <translation>QR code image saved</translation>
+        </message>
+        <message>
+            <source>QR code preview</source>
+            <translation>QR code preview</translation>
+        </message>
+        <message>
+            <source>Ready · %1 × %2 px</source>
+            <translation>Ready · %1 × %2 px</translation>
+        </message>
+        <message>
+            <source>Save PNG…</source>
+            <translation>Save PNG…</translation>
+        </message>
+        <message>
+            <source>Save QR code</source>
+            <translation>Save QR code</translation>
+        </message>
+        <message>
+            <source>Text or URL</source>
+            <translation>Text or URL</translation>
+        </message>
+    </context>
+    <context>
         <name>toolbox::QuotaService</name>
         <message>
             <source>%1 minutes</source>
@@ -98,8 +524,8 @@
             <translation>The quota query stopped. Check your CLI login</translation>
         </message>
         <message>
-            <source>Up to date · refresh every 60 seconds</source>
-            <translation>Up to date · refresh every 60 seconds</translation>
+            <source>Up to date · refresh every %1 seconds</source>
+            <translation>Up to date · refresh every %1 seconds</translation>
         </message>
         <message>
             <source>Weekly</source>
@@ -145,12 +571,16 @@
             <translation>Backup: %1</translation>
         </message>
         <message>
-            <source>Browse…</source>
-            <translation>Browse…</translation>
+            <source>Before or after selection, press Shift to change the color format, C to copy in that format, or X to copy HEX. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</source>
+            <translation>Before or after selection, press Shift to change the color format, C to copy in that format, or X to copy HEX. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</translation>
         </message>
         <message>
-            <source>C copies RGB and X copies HEX before or after selection. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</source>
-            <translation>C copies RGB and X copies HEX before or after selection. Esc cancels. Line width, colors and text size are available in the screenshot toolbar</translation>
+            <source>Blue (default)</source>
+            <translation>Blue (default)</translation>
+        </message>
+        <message>
+            <source>Browse…</source>
+            <translation>Browse…</translation>
         </message>
         <message>
             <source>Capture region</source>
@@ -269,12 +699,28 @@
             <translation>Exit</translation>
         </message>
         <message>
+            <source>Fix the capsule beside the Windows taskbar tray. It may overlap taskbar buttons when space is limited</source>
+            <translation>Fix the capsule beside the Windows taskbar tray. It may overlap taskbar buttons when space is limited</translation>
+        </message>
+        <message>
             <source>Four-row pebble</source>
             <translation>Four-row pebble</translation>
         </message>
         <message>
+            <source>Generate QR code</source>
+            <translation>Generate QR code</translation>
+        </message>
+        <message>
+            <source>Green</source>
+            <translation>Green</translation>
+        </message>
+        <message>
             <source>Keep logs for</source>
             <translation>Keep logs for</translation>
+        </message>
+        <message>
+            <source>Local notes</source>
+            <translation>Local notes</translation>
         </message>
         <message>
             <source>Local translation complete</source>
@@ -337,6 +783,10 @@
             <translation>Open toolbox</translation>
         </message>
         <message>
+            <source>Orange</source>
+            <translation>Orange</translation>
+        </message>
+        <message>
             <source>Original text → offline translation</source>
             <translation>Original text → offline translation</translation>
         </message>
@@ -351,6 +801,10 @@
         <message>
             <source>Pinned images</source>
             <translation>Pinned images</translation>
+        </message>
+        <message>
+            <source>Purple</source>
+            <translation>Purple</translation>
         </message>
         <message>
             <source>QR codes and barcodes</source>
@@ -413,6 +867,10 @@
             <translation>Restore pinned images</translation>
         </message>
         <message>
+            <source>Rose</source>
+            <translation>Rose</translation>
+        </message>
+        <message>
             <source>Save and apply</source>
             <translation>Save and apply</translation>
         </message>
@@ -465,6 +923,14 @@
             <translation>System cache</translation>
         </message>
         <message>
+            <source>Taskbar (left of tray)</source>
+            <translation>Taskbar (left of tray)</translation>
+        </message>
+        <message>
+            <source>Teal</source>
+            <translation>Teal</translation>
+        </message>
+        <message>
             <source>Text and translation panel</source>
             <translation>Text and translation panel</translation>
         </message>
@@ -483,6 +949,10 @@
         <message>
             <source>The screenshot shortcut could not be registered. Choose another shortcut in Settings</source>
             <translation>The screenshot shortcut could not be registered. Choose another shortcut in Settings</translation>
+        </message>
+        <message>
+            <source>Theme color</source>
+            <translation>Theme color</translation>
         </message>
         <message>
             <source>Toolbox and %1 processes: %2 MiB private working set · %3 MiB private commit</source>

@@ -9,12 +9,17 @@
 #include <algorithm>
 
 namespace toolbox {
+namespace {
+constexpr int refreshIntervalMs = 120'000;
+}
+
 QuotaService::QuotaService(QObject* parent) : QObject(parent) {
     QSettings cached(settingsPath(), QSettings::IniFormat);
     m_buckets =
         QJsonDocument::fromJson(cached.value(QStringLiteral("quotaCache")).toByteArray()).object();
     m_updatedAt = cached.value(QStringLiteral("quotaUpdatedAt")).toDateTime();
-    m_refresh.setInterval(60000);
+    m_refresh.setTimerType(Qt::PreciseTimer);
+    m_refresh.setInterval(refreshIntervalMs);
     m_deadline.setSingleShot(true);
     m_deadline.setInterval(20000);
     m_retire.setSingleShot(true);
@@ -51,8 +56,10 @@ void QuotaService::setEnabled(bool enabledValue) {
         m_status = tr("Quota queries are disabled");
         emit changed();
     } else {
-        m_refresh.start();
-        QTimer::singleShot(0, this, &QuotaService::refresh);
+        QTimer::singleShot(0, this, [this] {
+            if (!m_refresh.isActive())
+                refresh();
+        });
     }
 }
 void QuotaService::retire() {
@@ -67,6 +74,7 @@ void QuotaService::retire() {
 }
 void QuotaService::shutdown() {
     m_refresh.stop();
+    m_lastInteractionRefresh.invalidate();
     m_deadline.stop();
     m_pending = false;
     retire();
@@ -88,9 +96,19 @@ QString QuotaService::discover() {
     }
     return {};
 }
+void QuotaService::refreshOnInteraction() {
+    if (!m_enabled || m_pending ||
+        (m_lastInteractionRefresh.isValid() &&
+         m_lastInteractionRefresh.elapsed() < refreshIntervalMs))
+        return;
+    m_lastInteractionRefresh.start();
+    refresh();
+}
+
 void QuotaService::refresh() {
     if (!m_enabled || m_pending)
         return;
+    m_refresh.start(refreshIntervalMs);
     retire();
     QSettings settings(settingsPath(), QSettings::IniFormat);
     const QString executable =
@@ -155,9 +173,8 @@ void QuotaService::read() {
                 cached.setValue(QStringLiteral("quotaUpdatedAt"), m_updatedAt);
                 m_pending = false;
                 m_deadline.stop();
-                m_failures = 0;
-                m_refresh.setInterval(60000);
-                m_status = tr("Up to date · refresh every 60 seconds");
+                m_status =
+                    tr("Up to date · refresh every %1 seconds").arg(refreshIntervalMs / 1000);
                 emit changed();
             }
             m_process.closeWriteChannel();
@@ -170,13 +187,11 @@ void QuotaService::fail(QString message) {
     m_deadline.stop();
     m_stale = true;
     m_status = std::move(message);
-    m_failures = std::min(m_failures + 1, 4);
-    m_refresh.setInterval(std::min(900000, 60000 * (1 << m_failures)));
     emit changed();
 }
 bool QuotaService::stale() const {
     return m_stale || !m_enabled || !m_updatedAt.isValid() ||
-           m_updatedAt.secsTo(QDateTime::currentDateTime()) > 120;
+           m_updatedAt.msecsTo(QDateTime::currentDateTime()) > 2 * refreshIntervalMs;
 }
 QList<QuotaWindow> QuotaService::windows() const {
     return parse(m_buckets);

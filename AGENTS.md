@@ -54,3 +54,4 @@
 - Preserve Tools / Logs / Settings, all screenshot/recognition/translation/pin functions, both quota card styles and dimensions, 1M controls, memory tools and existing interaction details.
 - GPT dragon fan art is a small decorative accent only. Do not introduce a large welcome section, redesign navigation or replace the quota card with a character widget.
 - Build and verify the runnable preview; do not package until the user asks.
+- The personal toolbox is for Simplified Chinese use. Keep Tools, Logs, Settings, dialogs and previews in Chinese; retain technical names where appropriate. Do not add language selection or expand multilingual scope. Existing upstream translation keys and catalog machinery may remain, but visible text must not fall back to English.

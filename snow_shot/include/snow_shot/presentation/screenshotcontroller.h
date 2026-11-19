@@ -158,6 +158,7 @@ class ScreenshotController : public QObject {
     void pinnedImageEditingRequested(const QString& recordId);
     void recordingExportNotificationRequested(const QString& path);
     void captureActivityChanged(const QString& source, bool active);
+    void clipboardDiagnostic(quint64 generation, const QString& stage, int detail, quint32 code);
     void selectedFilePinFailed(const QString& message);
     void showMainWindowRequested();
     void accessibilityPermissionRequested();
